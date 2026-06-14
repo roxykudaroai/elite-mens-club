@@ -70,6 +70,8 @@
     font-family:var(--sans); font-weight:600;
   }
   .whoami button:hover{ background:var(--ink); color:var(--white); }
+  .whoami button#sync-btn{ margin-left:6px; }
+  .sync-status{ font-size:0.68rem; color:#889; margin-top:4px; letter-spacing:0.5px; }
 
   nav.tabs{
     display:flex; gap:6px; flex-wrap:wrap; margin-bottom: 22px;
@@ -282,35 +284,43 @@ const ME_KEY = 'club-current-user';
 const ORG_KEY = 'club-org-finance';
 const READ_KEY = 'club-notices-read';
 
-// Fallback storage shim for environments without window.storage (e.g. opening the file directly in a browser)
-if(!window.storage){
-  window.storage = {
-    async get(key, shared){
-      try{
-        const v = localStorage.getItem('clubapp:'+key);
-        if(v === null) throw new Error('not found');
-        return { key, value: v, shared: !!shared };
-      }catch(e){ throw e; }
-    },
-    async set(key, value, shared){
-      localStorage.setItem('clubapp:'+key, value);
-      return { key, value, shared: !!shared };
-    },
-    async delete(key, shared){
-      localStorage.removeItem('clubapp:'+key);
-      return { key, deleted:true, shared: !!shared };
-    },
-    async list(prefix, shared){
-      const keys = [];
-      for(let i=0;i<localStorage.length;i++){
-        const k = localStorage.key(i);
-        if(k.startsWith('clubapp:'+(prefix||''))) keys.push(k.replace('clubapp:',''));
-      }
-      return { keys, prefix, shared: !!shared };
-    }
-  };
+// ---------------- SHARED BACKEND (Supabase) ----------------
+// Member and organization data is shared by every visitor via a small Supabase
+// table called `club_data` (columns: key text primary key, value jsonb).
+// "Who am I" and "which notices have I read" stay on this device only (localStorage),
+// since there's no real authentication — they're just local conveniences.
+const SUPABASE_URL = 'https://jpznrizkvqznesovmblb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_AncuHz9DfKfU1zk6W-JLww_TksP7elL';
+
+async function supaGet(key){
+  const url = `${SUPABASE_URL}/rest/v1/club_data?key=eq.${encodeURIComponent(key)}&select=value`;
+  const res = await fetch(url, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  });
+  if(!res.ok) throw new Error(`Could not load "${key}" (status ${res.status})`);
+  const rows = await res.json();
+  return rows.length ? rows[0].value : null;
 }
 
+async function supaSet(key, value){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/club_data`, {
+    method: 'POST',
+    headers: {
+      apikey: SUPABASE_KEY,
+      Authorization: `Bearer ${SUPABASE_KEY}`,
+      'Content-Type': 'application/json',
+      Prefer: 'resolution=merge-duplicates,return=minimal'
+    },
+    body: JSON.stringify({ key, value, updated_at: new Date().toISOString() })
+  });
+  if(!res.ok) throw new Error(`Could not save "${key}" (status ${res.status})`);
+}
+
+function defaultOrg(){
+  return {
+    name: "Elite Men's Club", balance: 0, log: [], minutes: [], rules: '', notices: [], submissions: [], events: [], description: '', activityLog: []
+  };
+}
 
 const POSITIONS = ['Member','President','Vice President','Secretary','Treasurer','Financial Secretary','Public Relations Officer'];
 
@@ -343,21 +353,13 @@ function blankPermissions(){
 
 let state = {
   members: {},      // id -> member object
-  org: {
-    name: "Elite Men's Club",
-    balance: 0,
-    log: [],          // approved financial transactions
-    minutes: [],      // meeting minutes entries
-    rules: '',        // rules & regulations text
-    notices: [],      // notice board entries
-    submissions: [],  // member-submitted payments awaiting approval
-    events: [],       // organization events (meetings, gatherings, etc.)
-    description: '',  // welcome page overview / mission statement
-    activityLog: []   // admin action audit trail
-  },
+  org: defaultOrg(),
   me: null,          // member id of current user
   tab: 'overview',
-  readNotices: []    // notice ids this device has marked as read
+  readNotices: [],   // notice ids this device has marked as read
+  syncStatus: 'idle',   // 'idle' | 'syncing' | 'ok' | 'error'
+  syncError: null,
+  lastSynced: null
 };
 
 function genId(prefix){
@@ -419,39 +421,78 @@ function genMemberId(){
 }
 
 async function loadAll(){
+  state.syncStatus = 'syncing';
   try{
-    const r = await window.storage.get(STORAGE_KEY, true);
-    state.members = r ? JSON.parse(r.value) : {};
-  }catch(e){ state.members = {}; }
+    const [membersVal, orgVal] = await Promise.all([
+      supaGet(STORAGE_KEY),
+      supaGet(ORG_KEY)
+    ]);
+    state.members = membersVal || {};
+    state.org = Object.assign(defaultOrg(), orgVal || {});
+    state.syncStatus = 'ok';
+    state.syncError = null;
+    state.lastSynced = new Date();
+  }catch(e){
+    state.syncStatus = 'error';
+    state.syncError = e.message;
+  }
+
+  // Personal, per-device info — no shared backend needed for these.
   try{
-    const r = await window.storage.get(ORG_KEY, true);
-    const loaded = r ? JSON.parse(r.value) : {};
-    state.org = Object.assign({
-      name: "Elite Men's Club", balance: 0, log: [], minutes: [], rules: '', notices: [], submissions: [], events: [], description: '', activityLog: []
-    }, loaded);
-  }catch(e){ /* keep default */ }
-  try{
-    const r = await window.storage.get(ME_KEY, false);
-    state.me = r ? JSON.parse(r.value) : null;
+    const v = localStorage.getItem(ME_KEY);
+    state.me = v ? JSON.parse(v) : null;
   }catch(e){ state.me = null; }
   try{
-    const r = await window.storage.get(READ_KEY, false);
-    state.readNotices = r ? JSON.parse(r.value) : [];
+    const v = localStorage.getItem(READ_KEY);
+    state.readNotices = v ? JSON.parse(v) : [];
   }catch(e){ state.readNotices = []; }
 }
 
+// Re-fetch shared data from the server. Returns true on success.
+async function syncFromServer(){
+  state.syncStatus = 'syncing';
+  try{
+    const [membersVal, orgVal] = await Promise.all([
+      supaGet(STORAGE_KEY),
+      supaGet(ORG_KEY)
+    ]);
+    state.members = membersVal || {};
+    state.org = Object.assign(defaultOrg(), orgVal || {});
+    state.syncStatus = 'ok';
+    state.syncError = null;
+    state.lastSynced = new Date();
+    return true;
+  }catch(e){
+    state.syncStatus = 'error';
+    state.syncError = e.message;
+    return false;
+  }
+}
+
 async function saveReadNotices(){
-  await window.storage.set(READ_KEY, JSON.stringify(state.readNotices), false);
+  try{ localStorage.setItem(READ_KEY, JSON.stringify(state.readNotices)); }catch(e){}
 }
 
 async function saveMembers(){
-  await window.storage.set(STORAGE_KEY, JSON.stringify(state.members), true);
+  try{
+    await supaSet(STORAGE_KEY, state.members);
+    state.syncStatus = 'ok'; state.syncError = null; state.lastSynced = new Date();
+  }catch(e){
+    state.syncStatus = 'error'; state.syncError = e.message;
+    alert('Your change was applied here, but could not be saved to the shared database: ' + e.message + '\n\nIt may not be visible to other members. Check your connection and try again.');
+  }
 }
 async function saveOrg(){
-  await window.storage.set(ORG_KEY, JSON.stringify(state.org), true);
+  try{
+    await supaSet(ORG_KEY, state.org);
+    state.syncStatus = 'ok'; state.syncError = null; state.lastSynced = new Date();
+  }catch(e){
+    state.syncStatus = 'error'; state.syncError = e.message;
+    alert('Your change was applied here, but could not be saved to the shared database: ' + e.message + '\n\nIt may not be visible to other members. Check your connection and try again.');
+  }
 }
 async function saveMe(){
-  await window.storage.set(ME_KEY, JSON.stringify(state.me), false);
+  try{ localStorage.setItem(ME_KEY, JSON.stringify(state.me)); }catch(e){}
 }
 
 function meRecord(){
@@ -582,6 +623,11 @@ function renderUpcomingItem(item){
 // ---------------- RENDER ----------------
 function render(){
   const root = document.getElementById('root');
+  if(state.syncStatus === 'error' && !state.lastSynced){
+    root.innerHTML = renderConnectionError();
+    attachConnectionErrorHandlers();
+    return;
+  }
   if(!state.me || !state.members[state.me]){
     root.innerHTML = renderLogin();
     attachLoginHandlers();
@@ -596,8 +642,48 @@ function render(){
   attachTabHandlers();
 }
 
+function renderConnectionError(){
+  return `
+  <div class="login-box">
+    <div class="panel">
+      <div class="brand" style="justify-content:center; margin-bottom:6px;">${LOGO_SVG('brand')}</div>
+      <div class="title">Elite <span>Men's</span> Club</div>
+      <h2 style="margin-top:16px;">Connection problem</h2>
+      <p class="lede">We couldn't reach the club's shared database, so member and financial records can't be loaded right now. This usually means a network issue or a temporary outage.</p>
+      <p class="small" style="margin-bottom:16px;">${escapeHtml(state.syncError||'Unknown error')}</p>
+      <button class="btn brass" id="retry-connect-btn" style="width:100%;">Try Again</button>
+    </div>
+  </div>`;
+}
+
+function attachConnectionErrorHandlers(){
+  const btn = document.getElementById('retry-connect-btn');
+  if(btn){
+    btn.onclick = async () => {
+      btn.textContent = 'Connecting…';
+      await loadAll();
+      render();
+    };
+  }
+}
+
+function fmtRelativeTime(date){
+  if(!date) return '';
+  const secs = Math.round((Date.now() - date.getTime())/1000);
+  if(secs < 10) return 'just now';
+  if(secs < 60) return `${secs}s ago`;
+  const mins = Math.round(secs/60);
+  if(mins < 60) return `${mins}m ago`;
+  const hrs = Math.round(mins/60);
+  return `${hrs}h ago`;
+}
+
 function renderHeader(){
   const me = meRecord();
+  let syncLabel;
+  if(state.syncStatus === 'syncing') syncLabel = 'Syncing…';
+  else if(state.syncStatus === 'error') syncLabel = `<span style="color:var(--red);">⚠ Sync failed</span>`;
+  else syncLabel = `Synced ${fmtRelativeTime(state.lastSynced)}`;
   return `
     <header class="masthead">
       <div class="brand">
@@ -611,6 +697,8 @@ function renderHeader(){
         Signed in as <b>${escapeHtml(me.name)}</b> ${me.role==='admin' ? '<span class="tag admin">ADMIN</span>' : ''}
         <br>
         <button id="logout-btn">Switch member</button>
+        <button id="sync-btn" title="Refresh shared data from the server">↻ Sync</button>
+        <div class="sync-status">${syncLabel}</div>
       </div>
     </header>
   `;
@@ -1800,11 +1888,31 @@ function attachGlobalHandlers(){
     await saveMe();
     render();
   };
+  const syncBtn = document.getElementById('sync-btn');
+  if(syncBtn){
+    syncBtn.onclick = async () => {
+      await syncFromServer();
+      render();
+    };
+  }
   document.querySelectorAll('nav.tabs button').forEach(btn => {
     btn.onclick = () => {
       state.tab = btn.dataset.tab;
       render();
+      backgroundRefresh();
     };
+  });
+}
+
+// Quietly re-fetch shared data and re-render, but only if the user
+// isn't actively typing into a form field (to avoid disrupting input).
+function backgroundRefresh(){
+  syncFromServer().then(() => {
+    const active = document.activeElement;
+    const tag = active && active.tagName;
+    if(!['INPUT','TEXTAREA','SELECT'].includes(tag)){
+      render();
+    }
   });
 }
 
@@ -1850,7 +1958,7 @@ function escapeAttr(str){ return escapeHtml(str); }
 
 // ---------------- INIT ----------------
 (async function init(){
-  document.getElementById('root').innerHTML = '<div class="panel empty">Loading club roster…</div>';
+  document.getElementById('root').innerHTML = '<div class="panel empty">Connecting to club database…</div>';
   try{
     await loadAll();
     if(state.me && !state.members[state.me]) state.me = null;
@@ -1859,6 +1967,10 @@ function escapeAttr(str){ return escapeHtml(str); }
     document.getElementById('root').innerHTML = `<div class="panel"><h2>Something went wrong</h2><p>${escapeHtml(err.message||String(err))}</p></div>`;
     console.error(err);
   }
+
+  // Periodically refresh shared data in the background so changes made by
+  // other members (on other devices) show up without a manual reload.
+  setInterval(backgroundRefresh, 45000);
 })();
 </script>
 </body>
