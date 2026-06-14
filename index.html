@@ -209,6 +209,7 @@
   .idcard .idnum small{ display:block; font-size:0.6rem; letter-spacing:2px; color:rgba(255,255,255,0.6); }
 
   /* tables */
+  .table-wrap{ overflow-x:auto; }
   table{ width:100%; border-collapse:collapse; font-size:0.9rem; }
   th, td{ text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); }
   th{ font-family:var(--serif); color:var(--forest); font-size:0.85rem; text-transform:uppercase; letter-spacing:1px; }
@@ -225,6 +226,7 @@
     padding:14px 16px; text-align:center;
   }
   .stat .v{ font-family:var(--serif); font-size:1.6rem; font-weight:700; color:var(--forest); }
+  .stat .v.neg{ color: var(--red); }
   .stat .l{ font-size:0.72rem; text-transform:uppercase; letter-spacing:1.5px; color:#778; margin-top:4px; }
 
   .empty{ text-align:center; color:#889; padding:30px; font-style:italic; }
@@ -311,6 +313,33 @@ if(!window.storage){
 
 const POSITIONS = ['Member','President','Vice President','Secretary','Treasurer','Financial Secretary','Public Relations Officer'];
 
+// Granular permissions an admin can grant to (or take away from) any member,
+// independent of their position title.
+const PERMISSION_DEFS = [
+  { id:'editRules',      label:'Edit Rules & Regulations' },
+  { id:'editMinutes',    label:'Record Meeting Minutes' },
+  { id:'manageEvents',   label:'Manage Events Calendar' },
+  { id:'postNotices',    label:'Post Notices' },
+  { id:'approveFinance', label:'Approve Financial Submissions' },
+];
+
+// Sensible starting permissions applied the first time a member is assigned a position.
+// Admins can freely adjust these afterwards (e.g. take a right away from the President).
+const POSITION_DEFAULT_PERMISSIONS = {
+  'President':            { editRules:true, manageEvents:true, postNotices:true },
+  'Vice President':       { manageEvents:true },
+  'Secretary':            { editMinutes:true, manageEvents:true },
+  'Treasurer':            { approveFinance:true },
+  'Financial Secretary':  { approveFinance:true },
+  'Public Relations Officer': { postNotices:true },
+  'Member':               {}
+};
+function blankPermissions(){
+  const p = {};
+  PERMISSION_DEFS.forEach(d => p[d.id] = false);
+  return p;
+}
+
 let state = {
   members: {},      // id -> member object
   org: {
@@ -322,7 +351,8 @@ let state = {
     notices: [],      // notice board entries
     submissions: [],  // member-submitted payments awaiting approval
     events: [],       // organization events (meetings, gatherings, etc.)
-    description: ''   // welcome page overview / mission statement
+    description: '',  // welcome page overview / mission statement
+    activityLog: []   // admin action audit trail
   },
   me: null,          // member id of current user
   tab: 'overview',
@@ -331,6 +361,16 @@ let state = {
 
 function genId(prefix){
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
+}
+
+function logActivity(action){
+  state.org.activityLog = state.org.activityLog || [];
+  state.org.activityLog.push({
+    date: new Date().toISOString().slice(0,10),
+    actor: (meRecord()||{}).name || 'System',
+    action
+  });
+  if(state.org.activityLog.length > 100) state.org.activityLog = state.org.activityLog.slice(-100);
 }
 
 // Crest logo: shield with EMC monogram, laurel sprigs, and a coronet.
@@ -386,7 +426,7 @@ async function loadAll(){
     const r = await window.storage.get(ORG_KEY, true);
     const loaded = r ? JSON.parse(r.value) : {};
     state.org = Object.assign({
-      name: "Elite Men's Club", balance: 0, log: [], minutes: [], rules: '', notices: [], submissions: [], events: [], description: ''
+      name: "Elite Men's Club", balance: 0, log: [], minutes: [], rules: '', notices: [], submissions: [], events: [], description: '', activityLog: []
     }, loaded);
   }catch(e){ /* keep default */ }
   try{
@@ -424,17 +464,22 @@ function myPosition(){
   const m = meRecord();
   return m && m.position ? m.position : 'Member';
 }
+function hasPermission(m, permId){
+  if(!m) return false;
+  if(m.role === 'admin') return true;
+  return !!(m.permissions && m.permissions[permId]);
+}
 function canEditMinutes(){
-  return isAdmin() || myPosition() === 'Secretary';
+  return hasPermission(meRecord(), 'editMinutes');
 }
 function canEditRules(){
-  return isAdmin() || myPosition() === 'President';
+  return hasPermission(meRecord(), 'editRules');
 }
 function canPostNotices(){
-  return isAdmin();
+  return hasPermission(meRecord(), 'postNotices');
 }
 function canApproveFinance(){
-  return isAdmin() || myPosition() === 'Treasurer' || myPosition() === 'Financial Secretary';
+  return hasPermission(meRecord(), 'approveFinance');
 }
 function unreadNoticeCount(){
   const all = (state.org.notices||[]).map(n=>n.id);
@@ -489,7 +534,7 @@ function icsDataUrl(title, date, details){
   return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
 }
 function canManageEvents(){
-  return isAdmin() || myPosition() === 'Secretary' || myPosition() === 'President';
+  return hasPermission(meRecord(), 'manageEvents');
 }
 // Combine member birthdays with club-organized events into a single sorted, upcoming list
 function upcomingItems(limit){
@@ -698,10 +743,13 @@ function attachLoginHandlers(){
     const dob = document.getElementById('new-dob').value;
     const id = genMemberId();
     const isFirst = Object.keys(state.members).length === 0;
+    const startPosition = isFirst ? 'President' : 'Member';
     const member = {
       id, name, email, phone, pin, dob,
       role: isFirst ? 'admin' : 'member',
-      position: isFirst ? 'President' : 'Member',
+      position: startPosition,
+      permissions: Object.assign(blankPermissions(), POSITION_DEFAULT_PERMISSIONS[startPosition] || {}),
+      status: 'active',
       joined: new Date().toISOString().slice(0,10),
       bio: '', address: '',
       balance: 0,
@@ -909,7 +957,19 @@ function attachIdCardHandlers(){
 
 // ---------------- DIRECTORY ----------------
 function renderDirectory(){
-  const members = Object.values(state.members).sort((a,b)=>a.name.localeCompare(b.name));
+  const query = (state.directoryQuery||'').trim().toLowerCase();
+  const showInactive = !!state.showInactive;
+  let members = Object.values(state.members).sort((a,b)=>a.name.localeCompare(b.name));
+  const inactiveCount = members.filter(m=>m.status==='inactive').length;
+  if(!showInactive) members = members.filter(m=>m.status!=='inactive');
+  if(query){
+    members = members.filter(m =>
+      (m.name||'').toLowerCase().includes(query) ||
+      (m.email||'').toLowerCase().includes(query) ||
+      (m.position||'').toLowerCase().includes(query) ||
+      (m.id||'').toLowerCase().includes(query)
+    );
+  }
   const rows = members.map(m => `
     <tr>
       <td>
@@ -917,7 +977,7 @@ function renderDirectory(){
           ${m.photo
             ? `<img src="${m.photo}" alt="${escapeAttr(m.name)}" class="thumb-photo">`
             : `<div class="thumb-photo thumb-photo--empty">${escapeHtml(initials(m.name))}</div>`}
-          <div><b>${escapeHtml(m.name)}</b><br><span class="small">${m.id}</span></div>
+          <div><b>${escapeHtml(m.name)}</b>${m.status==='inactive'?' <span class="small">(inactive)</span>':''}<br><span class="small">${m.id}</span></div>
         </div>
       </td>
       <td>${escapeHtml(m.email||'—')}</td>
@@ -930,10 +990,20 @@ function renderDirectory(){
   <div class="panel">
     <h2>Member Directory</h2>
     <p class="lede">General information for all club members.</p>
+    <div class="grid2">
+      <div class="field"><label>Search</label><input id="directory-search" placeholder="Search by name, email, or position..." value="${escapeAttr(state.directoryQuery||'')}"></div>
+      <div class="field" style="display:flex; align-items:flex-end;">
+        <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-weight:500; cursor:pointer;">
+          <input type="checkbox" id="directory-show-inactive" ${showInactive?'checked':''}> Show inactive members ${inactiveCount?`(${inactiveCount})`:''}
+        </label>
+      </div>
+    </div>
+    <div class="table-wrap">
     <table>
       <thead><tr><th>Name / ID</th><th>Email</th><th>Phone</th><th>Position</th><th>Joined</th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="5" class="empty">No members yet.</td></tr>'}</tbody>
+      <tbody>${rows || '<tr><td colspan="5" class="empty">No members found.</td></tr>'}</tbody>
     </table>
+    </div>
   </div>`;
 }
 
@@ -1106,6 +1176,18 @@ function renderOverview(){
   </div>
 
   <div class="panel">
+    <h2>My Account</h2>
+    <p class="lede">A quick snapshot of your standing with the club. Visit the Finances tab to report a payment.</p>
+    <div class="stat-row">
+      <div class="stat"><div class="v ${me.balance<0?'neg':''}">${fmtMoney(me.balance)}</div><div class="l">My Balance</div></div>
+      <div class="stat"><div class="v">${fmtMoney(me.monthlyContribution||0)}</div><div class="l">Monthly Contribution</div></div>
+      <div class="stat"><div class="v">${(me.contributions||{})[currentMonthKey()]==='paid' ? '✓ Paid' : 'Pending'}</div><div class="l">${fmtMonthKey(currentMonthKey())}</div></div>
+      <div class="stat"><div class="v">${me.dues.status==='paid' ? '✓ Paid' : escapeHtml(me.dues.status)}</div><div class="l">Membership Dues</div></div>
+      ${(me.fines||0)>0 ? `<div class="stat"><div class="v neg">${fmtMoney(me.fines)}</div><div class="l">Outstanding Fines</div></div>` : ''}
+    </div>
+  </div>
+
+  <div class="panel">
     <h2>Upcoming</h2>
     <p class="lede">Birthdays and scheduled club events. Tap a button to add any of these to your personal calendar.</p>
     ${upcoming.length ? upcoming.map(renderUpcomingItem).join('') : '<p class="empty">Nothing on the horizon yet.</p>'}
@@ -1184,6 +1266,7 @@ function attachEventsHandlers(){
       if(!title || !date){ alert('Please provide a title and date.'); return; }
       state.org.events = state.org.events || [];
       state.org.events.push({ id: genId('evt'), title, date, description, createdBy: meRecord().name });
+      logActivity(`Added event: "${title}" on ${date}`);
       await saveOrg();
       render();
     };
@@ -1240,6 +1323,7 @@ function attachMinutesHandlers(){
       if(!date || !title || !content){ alert('Please fill in date, title, and minutes.'); return; }
       state.org.minutes = state.org.minutes || [];
       state.org.minutes.push({ id: genId('min'), date, title, content, author: meRecord().name });
+      logActivity(`Published meeting minutes: "${title}"`);
       await saveOrg();
       render();
     };
@@ -1280,6 +1364,7 @@ function attachRulesHandlers(){
   if(!btn) return;
   btn.onclick = async () => {
     state.org.rules = document.getElementById('rules-text').value;
+    logActivity('Updated Rules & Regulations');
     await saveOrg();
     render();
   };
@@ -1331,6 +1416,7 @@ function attachNoticesHandlers(){
       state.org.notices = state.org.notices || [];
       const notice = { id: genId('not'), title, body, date: new Date().toISOString().slice(0,10), author: meRecord().name };
       state.org.notices.unshift(notice);
+      logActivity(`Posted notice: "${title}"`);
       await saveOrg();
       if('Notification' in window && Notification.permission === 'granted'){
         try{ new Notification(`${state.org.name}: ${title}`, { body }); }catch(e){}
@@ -1395,6 +1481,12 @@ function renderAdmin(){
       </td>
       <td><input class="dues-amount" data-id="${m.id}" type="number" step="0.01" value="${m.dues.amount}" style="width:80px;"></td>
       <td>
+        <select class="status-select" data-id="${m.id}">
+          <option value="active" ${(m.status||'active')==='active'?'selected':''}>active</option>
+          <option value="inactive" ${m.status==='inactive'?'selected':''}>inactive</option>
+        </select>
+      </td>
+      <td>
         <button class="btn outline save-member-btn" data-id="${m.id}" style="padding:6px 14px; font-size:0.8rem;">Save</button>
         <button class="btn outline reset-pin-btn" data-id="${m.id}" style="padding:6px 14px; font-size:0.8rem;">Reset PIN</button>
         <button class="btn danger remove-member-btn" data-id="${m.id}" style="padding:6px 14px; font-size:0.8rem;">Remove</button>
@@ -1402,14 +1494,51 @@ function renderAdmin(){
     </tr>
   `).join('');
 
+  const permRows = members.map(m => `
+    <tr data-id="${m.id}">
+      <td><b>${escapeHtml(m.name)}</b><br><span class="small">${escapeHtml(m.position||'Member')}${m.role==='admin'?' · <span class="tag admin">ADMIN</span>':''}</span></td>
+      ${PERMISSION_DEFS.map(p => `
+        <td style="text-align:center;">
+          <input type="checkbox" class="perm-check" data-id="${m.id}" data-perm="${p.id}"
+            ${m.role==='admin' ? 'checked disabled' : ((m.permissions&&m.permissions[p.id])?'checked':'')}>
+        </td>
+      `).join('')}
+      <td>
+        <button class="btn outline save-perm-btn" data-id="${m.id}" style="padding:6px 14px; font-size:0.8rem;" ${m.role==='admin'?'disabled':''}>Save</button>
+        <button class="btn outline reset-perm-btn" data-id="${m.id}" style="padding:6px 14px; font-size:0.8rem;" ${m.role==='admin'?'disabled':''}>Reset to Position Defaults</button>
+      </td>
+    </tr>
+  `).join('');
+
+  const logEntries = (state.org.activityLog||[]).slice().reverse().slice(0,15).map(e => `
+    <tr>
+      <td>${e.date}</td>
+      <td>${escapeHtml(e.actor)}</td>
+      <td>${escapeHtml(e.action)}</td>
+    </tr>
+  `).join('');
+
   return `
   <div class="panel">
     <h2>Admin · Member Management</h2>
-    <p class="lede">Update roles, club positions, balances, monthly contributions, fines, and dues status for any member. Assigning a position (e.g. Treasurer, Secretary, President) grants the related permissions across the app. Changes save per row.</p>
+    <p class="lede">Update roles, club positions, balances, monthly contributions, fines, dues status and membership status for any member. Assigning a position sets some sensible default permissions — fine-tune those in the Roles &amp; Permissions table below. Changes save per row.</p>
+    <div class="table-wrap">
     <table>
-      <thead><tr><th>Member</th><th>Role</th><th>Position</th><th>Balance (€)</th><th>Monthly Contrib. (€)</th><th>Fines (€)</th><th>Dues Status</th><th>Dues Amount</th><th></th></tr></thead>
-      <tbody>${rows || '<tr><td colspan="9" class="empty">No members yet.</td></tr>'}</tbody>
+      <thead><tr><th>Member</th><th>Role</th><th>Position</th><th>Balance (€)</th><th>Monthly Contrib. (€)</th><th>Fines (€)</th><th>Dues Status</th><th>Dues Amount</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="10" class="empty">No members yet.</td></tr>'}</tbody>
     </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Admin · Roles &amp; Permissions</h2>
+    <p class="lede">Grant or revoke specific rights for any member — independent of their position title. For example, you can take away rule-editing rights from a President while leaving their other privileges intact, or grant notice-posting rights to a regular member. Admins always have full access.</p>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Member</th>${PERMISSION_DEFS.map(p=>`<th style="text-align:center;">${p.label}</th>`).join('')}<th></th></tr></thead>
+      <tbody>${permRows || `<tr><td colspan="${PERMISSION_DEFS.length+2}" class="empty">No members yet.</td></tr>`}</tbody>
+    </table>
+    </div>
   </div>
 
   <div class="panel">
@@ -1436,6 +1565,17 @@ function renderAdmin(){
     <p class="lede">Editable overview shown to all members on the Welcome page. The club name and treasury are set above.</p>
     <div class="field"><label>Welcome / Overview Message</label><textarea id="org-description" style="min-height:120px;" placeholder="A short welcome message, mission statement, or summary of the club...">${escapeHtml(state.org.description||'')}</textarea></div>
     <button class="btn brass" id="save-org-description-btn">Save Overview</button>
+  </div>
+
+  <div class="panel">
+    <h2>Admin · Recent Activity</h2>
+    <p class="lede">An audit trail of recent administrative actions, for accountability.</p>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Date</th><th>By</th><th>Action</th></tr></thead>
+      <tbody>${logEntries || '<tr><td colspan="3" class="empty">No activity recorded yet.</td></tr>'}</tbody>
+    </table>
+    </div>
   </div>`;
 }
 
@@ -1490,6 +1630,7 @@ function attachFinanceHandlers(){
       state.org.balance = (Number(state.org.balance)||0) + sub.amount;
       state.org.log = state.org.log || [];
       state.org.log.push({ date: sub.date, desc: `${member.name} — ${submissionLabel(sub)}`, amount: sub.amount });
+      logActivity(`Approved ${submissionLabel(sub)} of ${fmtMoney(sub.amount)} for ${member.name}`);
       await saveMembers();
       await saveOrg();
       render();
@@ -1500,9 +1641,11 @@ function attachFinanceHandlers(){
       const sub = (state.org.submissions||[]).find(s=>s.id===btn.dataset.id);
       if(!sub) return;
       if(!confirm('Reject this payment submission?')) return;
+      const member = state.members[sub.memberId];
       sub.status = 'rejected';
       sub.reviewedBy = meRecord().name;
       sub.reviewedDate = new Date().toISOString().slice(0,10);
+      logActivity(`Rejected ${submissionLabel(sub)} of ${fmtMoney(sub.amount)} for ${member?member.name:'a former member'}`);
       await saveOrg();
       render();
     };
@@ -1515,8 +1658,30 @@ function attachAdminHandlers(){
       const id = btn.dataset.id;
       const m = state.members[id];
       const row = btn.closest('tr');
-      m.role = row.querySelector('.role-select').value;
-      m.position = row.querySelector('.position-select').value;
+
+      const newRole = row.querySelector('.role-select').value;
+      const isLastAdmin = m.role === 'admin' && Object.values(state.members).filter(x=>x.role==='admin').length <= 1;
+      if(isLastAdmin && newRole !== 'admin'){
+        if(!confirm('This is the only admin account. Removing admin rights will leave the club without an admin to manage it. Continue anyway?')) return;
+      }
+      if(newRole !== m.role){
+        logActivity(`Changed ${m.name}'s role from ${m.role} to ${newRole}`);
+      }
+      m.role = newRole;
+
+      const newPosition = row.querySelector('.position-select').value;
+      if(newPosition !== (m.position||'Member')){
+        m.permissions = Object.assign(blankPermissions(), POSITION_DEFAULT_PERMISSIONS[newPosition] || {});
+        logActivity(`Changed ${m.name}'s position from ${m.position||'Member'} to ${newPosition} (default permissions applied)`);
+      }
+      m.position = newPosition;
+
+      const newStatus = row.querySelector('.status-select').value;
+      if(newStatus !== (m.status||'active')){
+        logActivity(`Marked ${m.name} as ${newStatus}`);
+      }
+      m.status = newStatus;
+
       m.balance = parseFloat(row.querySelector('.bal-input').value) || 0;
       m.monthlyContribution = parseFloat(row.querySelector('.contrib-input').value) || 0;
       m.fines = parseFloat(row.querySelector('.fines-input').value) || 0;
@@ -1524,6 +1689,38 @@ function attachAdminHandlers(){
       m.dues.amount = parseFloat(row.querySelector('.dues-amount').value) || 0;
       if(m.dues.status === 'paid'){ m.dues.lastPaid = new Date().toISOString().slice(0,10); }
       await saveMembers();
+      await saveOrg();
+      render();
+    };
+  });
+  document.querySelectorAll('.save-perm-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      const m = state.members[id];
+      if(m.role === 'admin') return;
+      const row = btn.closest('tr');
+      const newPerms = {};
+      PERMISSION_DEFS.forEach(p => {
+        const cb = row.querySelector(`.perm-check[data-perm="${p.id}"]`);
+        newPerms[p.id] = !!(cb && cb.checked);
+      });
+      m.permissions = newPerms;
+      logActivity(`Updated permissions for ${m.name}`);
+      await saveMembers();
+      await saveOrg();
+      render();
+    };
+  });
+  document.querySelectorAll('.reset-perm-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      const m = state.members[id];
+      if(m.role === 'admin') return;
+      if(!confirm(`Reset ${m.name}'s permissions to the defaults for "${m.position||'Member'}"?`)) return;
+      m.permissions = Object.assign(blankPermissions(), POSITION_DEFAULT_PERMISSIONS[m.position||'Member'] || {});
+      logActivity(`Reset ${m.name}'s permissions to ${m.position||'Member'} defaults`);
+      await saveMembers();
+      await saveOrg();
       render();
     };
   });
@@ -1534,7 +1731,9 @@ function attachAdminHandlers(){
       if(newPin === null) return;
       if(!/^\d{4,6}$/.test(newPin.trim())){ alert('PIN must be 4–6 digits.'); return; }
       state.members[id].pin = newPin.trim();
+      logActivity(`Reset PIN for ${state.members[id].name}`);
       await saveMembers();
+      await saveOrg();
       alert('PIN reset.');
     };
   });
@@ -1542,9 +1741,16 @@ function attachAdminHandlers(){
     btn.onclick = async () => {
       const id = btn.dataset.id;
       if(id === state.me){ alert("You can't remove your own profile while logged in."); return; }
-      if(!confirm(`Remove member ${state.members[id].name}? This cannot be undone.`)) return;
+      const target = state.members[id];
+      if(target.role === 'admin' && Object.values(state.members).filter(x=>x.role==='admin').length <= 1){
+        alert("This is the only admin account — assign admin rights to another member before removing it.");
+        return;
+      }
+      if(!confirm(`Remove member ${target.name}? This cannot be undone.`)) return;
+      logActivity(`Removed member ${target.name} (${target.id})`);
       delete state.members[id];
       await saveMembers();
+      await saveOrg();
       render();
     };
   });
@@ -1553,6 +1759,7 @@ function attachAdminHandlers(){
     saveOrgBtn.onclick = async () => {
       state.org.balance = parseFloat(document.getElementById('org-balance').value) || 0;
       state.org.name = document.getElementById('org-name').value.trim() || state.org.name;
+      logActivity('Updated treasury settings');
       await saveOrg();
       render();
     };
@@ -1566,6 +1773,7 @@ function attachAdminHandlers(){
       state.org.log = state.org.log || [];
       state.org.log.push({ date: new Date().toISOString().slice(0,10), desc, amount });
       state.org.balance = (Number(state.org.balance)||0) + amount;
+      logActivity(`Logged transaction: ${desc} (${fmtMoney(amount)})`);
       await saveOrg();
       render();
     };
@@ -1574,6 +1782,7 @@ function attachAdminHandlers(){
   if(saveDescBtn){
     saveDescBtn.onclick = async () => {
       state.org.description = document.getElementById('org-description').value;
+      logActivity('Updated organization overview');
       await saveOrg();
       render();
     };
@@ -1598,12 +1807,36 @@ function attachGlobalHandlers(){
 function attachTabHandlers(){
   attachProfileHandlers();
   attachIdCardHandlers();
+  attachDirectoryHandlers();
   attachFinanceHandlers();
   attachEventsHandlers();
   attachMinutesHandlers();
   attachRulesHandlers();
   attachNoticesHandlers();
   attachAdminHandlers();
+}
+
+function attachDirectoryHandlers(){
+  const search = document.getElementById('directory-search');
+  if(search){
+    search.oninput = () => {
+      const cursorPos = search.selectionStart;
+      state.directoryQuery = search.value;
+      render();
+      const newSearch = document.getElementById('directory-search');
+      if(newSearch){
+        newSearch.focus();
+        try{ newSearch.setSelectionRange(cursorPos, cursorPos); }catch(e){}
+      }
+    };
+  }
+  const showInactive = document.getElementById('directory-show-inactive');
+  if(showInactive){
+    showInactive.onchange = () => {
+      state.showInactive = showInactive.checked;
+      render();
+    };
+  }
 }
 
 function escapeHtml(str){
