@@ -1,0 +1,1628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Roster — Club Membership</title>
+<style>
+  :root{
+    --ink:#1c2b2d;
+    --paper:#f3efe6;
+    --brass:#b8902f;
+    --brass-dark:#8a6a1f;
+    --forest:#2f4a3f;
+    --forest-light:#3e6354;
+    --line:#d8cfbd;
+    --red:#9b3b3b;
+    --white:#fffdf8;
+    --shadow: 0 8px 24px rgba(28,43,45,0.12);
+    --serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
+    --sans: 'Inter', -apple-system, Segoe UI, sans-serif;
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family: var(--sans);
+    background: var(--paper);
+    color: var(--ink);
+    background-image:
+      radial-gradient(circle at 1px 1px, rgba(28,43,45,0.05) 1px, transparent 0);
+    background-size: 22px 22px;
+    min-height:100vh;
+    padding: 24px;
+  }
+  .app{ max-width: 980px; margin: 0 auto; }
+
+  header.masthead{
+    border-bottom: 3px solid var(--ink);
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+    display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:10px;
+  }
+  header.masthead .title{
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 2.4rem;
+    letter-spacing: 0.5px;
+    line-height:1;
+  }
+  header.masthead .title span{ color: var(--brass); }
+  header.masthead .sub{
+    font-size: 0.78rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--forest);
+    font-weight:600;
+  }
+  .brand{ display:flex; align-items:center; gap:14px; }
+  .brand svg{ width:56px; height:56px; flex-shrink:0; }
+  .login-box .brand{ justify-content:center; margin-bottom: 6px; }
+  .login-box .brand svg{ width:72px; height:72px; }
+  .whoami{
+    font-size:0.85rem; text-align:right;
+  }
+  .whoami b{ font-family:var(--serif); font-size:1rem; }
+  .whoami button{
+    margin-top:4px; font-size:0.72rem; padding:4px 10px;
+    background:none; border:1px solid var(--ink); border-radius:20px; cursor:pointer;
+    font-family:var(--sans); font-weight:600;
+  }
+  .whoami button:hover{ background:var(--ink); color:var(--white); }
+
+  nav.tabs{
+    display:flex; gap:6px; flex-wrap:wrap; margin-bottom: 22px;
+  }
+  nav.tabs button{
+    font-family: var(--serif);
+    font-weight:700;
+    font-size:0.95rem;
+    padding: 9px 18px;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-bottom: 3px solid transparent;
+    cursor:pointer;
+    color: var(--ink);
+    border-radius: 4px 4px 0 0;
+    transition: all .15s;
+  }
+  nav.tabs button.active{
+    border-bottom: 3px solid var(--brass);
+    color: var(--forest);
+    background: var(--white);
+  }
+  nav.tabs button:hover{ background: var(--white); border-color: var(--brass); }
+
+  .panel{
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    padding: 26px;
+    margin-bottom: 20px;
+  }
+  .panel h2{
+    font-family: var(--serif);
+    font-size:1.4rem;
+    margin-bottom: 14px;
+    color: var(--forest);
+    display:flex; align-items:center; gap:10px;
+  }
+  .panel h2 .num{
+    font-family: var(--mono); font-size:0.8rem; color:var(--brass);
+    border:1px solid var(--brass); border-radius:50%; width:26px; height:26px;
+    display:flex; align-items:center; justify-content:center; font-weight:700;
+  }
+  p.lede{ color:#566; margin-bottom:16px; font-size:0.92rem; }
+
+  /* form */
+  .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:14px; }
+  @media (max-width:600px){ .grid2{grid-template-columns:1fr;} }
+  label{ display:block; font-size:0.78rem; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; color:var(--forest); margin-bottom:5px; }
+  input, select, textarea{
+    width:100%; padding:9px 11px; font-family:var(--sans); font-size:0.95rem;
+    border:1px solid var(--line); border-radius:4px; background:var(--paper);
+    color:var(--ink);
+  }
+  input:focus, select:focus, textarea:focus{ outline:2px solid var(--brass); outline-offset:1px; }
+  .field{ margin-bottom:14px; }
+  textarea{ resize:vertical; min-height:60px; }
+
+  .btn{
+    font-family:var(--serif); font-weight:700; font-size:0.95rem;
+    padding:10px 22px; border-radius:4px; border:none; cursor:pointer;
+    background: var(--forest); color:var(--white);
+    transition: transform .1s, background .15s;
+  }
+  .btn:hover{ background: var(--forest-light); }
+  .btn:active{ transform: scale(0.98); }
+  .btn.brass{ background: var(--brass); }
+  .btn.brass:hover{ background: var(--brass-dark); }
+  .btn.outline{ background:none; border:1px solid var(--ink); color:var(--ink); }
+  .btn.outline:hover{ background:var(--ink); color:var(--white); }
+  .btn.danger{ background: var(--red); }
+  .btn-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+
+  /* ID card */
+  .card-wrap{ display:flex; justify-content:center; padding: 10px 0; }
+  .idcard{
+    width: 380px; min-height: 230px;
+    background: linear-gradient(135deg, var(--forest) 0%, #233b30 100%);
+    color: var(--white);
+    border-radius: 14px;
+    padding: 20px 22px;
+    position: relative;
+    overflow:hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    font-family: var(--sans);
+  }
+  .idcard::before{
+    content:"";
+    position:absolute; top:-60px; right:-60px; width:180px; height:180px;
+    border:14px solid rgba(184,144,47,0.18); border-radius:50%;
+  }
+  .idcard::after{
+    content:"";
+    position:absolute; bottom:-50px; left:-50px; width:140px; height:140px;
+    border:10px solid rgba(184,144,47,0.12); border-radius:50%;
+  }
+  .idcard .org{ font-family:var(--serif); font-weight:900; font-size:1.05rem; letter-spacing:1px; }
+  .idcard .org span{ color: var(--brass); }
+  .idcard .org-sub{ font-size:0.62rem; letter-spacing:3px; text-transform:uppercase; opacity:0.7; margin-bottom: 14px;}
+  .idcard .name{ font-family:var(--serif); font-size:1.5rem; font-weight:700; margin-top:0; }
+  .idcard .role-tag{
+    display:inline-block; font-size:0.65rem; letter-spacing:2px; text-transform:uppercase;
+    background: var(--brass); color:var(--ink); padding:2px 10px; border-radius:10px; font-weight:700; margin-top:6px;
+  }
+  .idcard .meta{ margin-top:14px; font-size:0.78rem; line-height:1.6; opacity:0.9; }
+  .idcard .meta b{ color: var(--brass); font-weight:600; }
+  .idcard-crest{ position:absolute; top:18px; right:20px; width:34px; height:34px; color: rgba(255,255,255,0.55); z-index:1; }
+  .idcard-crest svg{ width:100%; height:100%; display:block; }
+  .idcard-body{ display:flex; gap:16px; align-items:flex-start; margin-top:6px; position:relative; z-index:1; }
+  .card-photo{
+    width:84px; height:104px; object-fit:cover; border-radius:6px;
+    border:2px solid var(--brass); flex-shrink:0; background:rgba(255,255,255,0.08);
+  }
+  .card-photo--empty{
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--serif); font-weight:700; font-size:1.6rem; color: rgba(255,255,255,0.65);
+  }
+  .idcard-info{ flex:1; min-width:0; }
+  .profile-photo-row{ display:flex; align-items:center; gap:14px; margin-bottom:16px; }
+  .profile-photo{ width:72px; height:88px; object-fit:cover; border-radius:6px; border:2px solid var(--brass); }
+  .profile-photo--empty{
+    display:flex; align-items:center; justify-content:center;
+    background: var(--forest); color:var(--brass);
+    font-family:var(--serif); font-weight:700; font-size:1.4rem;
+  }
+  .thumb-photo{ width:36px; height:44px; object-fit:cover; border-radius:4px; border:1px solid var(--line); flex-shrink:0; }
+  .thumb-photo--empty{
+    display:flex; align-items:center; justify-content:center;
+    background: var(--forest); color:var(--brass);
+    font-family:var(--serif); font-weight:700; font-size:0.85rem;
+  }
+  .idcard .idnum{
+    position:absolute; bottom:18px; right:22px; text-align:right;
+    font-family: var(--mono); font-size:0.85rem; letter-spacing:1px; color: var(--brass);
+  }
+  .idcard .idnum small{ display:block; font-size:0.6rem; letter-spacing:2px; color:rgba(255,255,255,0.6); }
+
+  /* tables */
+  table{ width:100%; border-collapse:collapse; font-size:0.9rem; }
+  th, td{ text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); }
+  th{ font-family:var(--serif); color:var(--forest); font-size:0.85rem; text-transform:uppercase; letter-spacing:1px; }
+  tr:hover td{ background: rgba(184,144,47,0.06); }
+  .tag{ font-size:0.7rem; padding:2px 8px; border-radius:10px; font-weight:700; letter-spacing:0.5px; }
+  .tag.admin{ background: var(--red); color:var(--white); }
+  .tag.member{ background: var(--forest); color:var(--white); }
+  .pos{ color: var(--forest); font-weight:700; }
+  .neg{ color: var(--red); font-weight:700; }
+
+  .stat-row{ display:flex; gap:14px; flex-wrap:wrap; margin-bottom:18px; }
+  .stat{
+    flex:1; min-width:140px; background:var(--paper); border:1px solid var(--line); border-radius:6px;
+    padding:14px 16px; text-align:center;
+  }
+  .stat .v{ font-family:var(--serif); font-size:1.6rem; font-weight:700; color:var(--forest); }
+  .stat .l{ font-size:0.72rem; text-transform:uppercase; letter-spacing:1.5px; color:#778; margin-top:4px; }
+
+  .empty{ text-align:center; color:#889; padding:30px; font-style:italic; }
+  .small{ font-size:0.78rem; color:#778; }
+  .divider{ border:none; border-top:1px dashed var(--line); margin:18px 0; }
+  .login-box{ max-width:440px; margin: 60px auto; }
+  .login-box .panel{ text-align:center; }
+  .login-box .title{ font-family:var(--serif); font-size:2rem; font-weight:900; margin-bottom:6px;}
+  .login-box .title span{ color:var(--brass); }
+
+  /* badges */
+  .badge{
+    display:inline-flex; align-items:center; justify-content:center;
+    background: var(--red); color: var(--white);
+    font-family: var(--sans); font-size:0.68rem; font-weight:700;
+    min-width:18px; height:18px; padding:0 5px; border-radius:9px; line-height:1;
+    vertical-align: middle;
+  }
+
+  /* upcoming events / birthdays */
+  .event-item{
+    display:flex; align-items:center; gap:14px;
+    padding:12px 0; border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .event-item:last-child{ border-bottom:none; }
+  .event-date{
+    flex-shrink:0; width:54px; text-align:center;
+    background: var(--forest); color:var(--white); border-radius:6px; padding:6px 4px;
+  }
+  .event-date-day{ font-family:var(--serif); font-size:1.3rem; font-weight:900; line-height:1; }
+  .event-date-month{ font-size:0.65rem; letter-spacing:1px; text-transform:uppercase; color: var(--brass); margin-top:2px; }
+  .event-body{ flex:1; min-width:160px; }
+  .event-title{ font-family:var(--serif); font-weight:700; font-size:1rem; }
+  .event-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+  /* notices / minutes cards */
+  .notice-card{
+    border:1px solid var(--line); border-radius:6px; padding:14px 16px; margin-bottom:14px; background: var(--paper);
+  }
+  .notice-card--unread{ border-color: var(--brass); box-shadow: 0 0 0 1px var(--brass) inset; }
+  .notice-title{ font-family:var(--serif); font-weight:700; font-size:1.05rem; margin-bottom:4px; }
+  .notice-card p{ margin-top:8px; font-size:0.92rem; line-height:1.5; }
+</style>
+</head>
+<body>
+<div id="root" class="app"></div>
+
+<script>
+const STORAGE_KEY = 'club-members';
+const ME_KEY = 'club-current-user';
+const ORG_KEY = 'club-org-finance';
+const READ_KEY = 'club-notices-read';
+
+// Fallback storage shim for environments without window.storage (e.g. opening the file directly in a browser)
+if(!window.storage){
+  window.storage = {
+    async get(key, shared){
+      try{
+        const v = localStorage.getItem('clubapp:'+key);
+        if(v === null) throw new Error('not found');
+        return { key, value: v, shared: !!shared };
+      }catch(e){ throw e; }
+    },
+    async set(key, value, shared){
+      localStorage.setItem('clubapp:'+key, value);
+      return { key, value, shared: !!shared };
+    },
+    async delete(key, shared){
+      localStorage.removeItem('clubapp:'+key);
+      return { key, deleted:true, shared: !!shared };
+    },
+    async list(prefix, shared){
+      const keys = [];
+      for(let i=0;i<localStorage.length;i++){
+        const k = localStorage.key(i);
+        if(k.startsWith('clubapp:'+(prefix||''))) keys.push(k.replace('clubapp:',''));
+      }
+      return { keys, prefix, shared: !!shared };
+    }
+  };
+}
+
+
+const POSITIONS = ['Member','President','Vice President','Secretary','Treasurer','Financial Secretary','Public Relations Officer'];
+
+let state = {
+  members: {},      // id -> member object
+  org: {
+    name: "Elite Men's Club",
+    balance: 0,
+    log: [],          // approved financial transactions
+    minutes: [],      // meeting minutes entries
+    rules: '',        // rules & regulations text
+    notices: [],      // notice board entries
+    submissions: [],  // member-submitted payments awaiting approval
+    events: [],       // organization events (meetings, gatherings, etc.)
+    description: ''   // welcome page overview / mission statement
+  },
+  me: null,          // member id of current user
+  tab: 'overview',
+  readNotices: []    // notice ids this device has marked as read
+};
+
+function genId(prefix){
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`;
+}
+
+// Crest logo: shield with EMC monogram, laurel sprigs, and a coronet.
+// `mode` = 'mono' (single currentColor, for dark ID card) or 'brand' (brass + forest, for light UI)
+function LOGO_SVG(mode){
+  const brass = mode === 'mono' ? 'currentColor' : 'var(--brass)';
+  const ink   = mode === 'mono' ? 'currentColor' : 'var(--forest)';
+  const fill  = mode === 'mono' ? 'none' : 'var(--forest)';
+  return `
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <!-- laurel left -->
+    <g stroke="${brass}" stroke-width="2" fill="none" stroke-linecap="round">
+      <path d="M16 70 C 10 58, 12 44, 22 34"/>
+      <path d="M17 64 L10 60 M19 56 L11 53 M22 48 L14 46 M26 41 L19 37"/>
+    </g>
+    <!-- laurel right -->
+    <g stroke="${brass}" stroke-width="2" fill="none" stroke-linecap="round">
+      <path d="M84 70 C 90 58, 88 44, 78 34"/>
+      <path d="M83 64 L90 60 M81 56 L89 53 M78 48 L86 46 M74 41 L81 37"/>
+    </g>
+    <!-- coronet -->
+    <g fill="${brass}">
+      <path d="M50 8 L54 18 L60 11 L58 22 L66 18 L60 27 L40 27 L34 18 L42 22 L40 11 L46 18 Z"/>
+    </g>
+    <!-- shield -->
+    <path d="M30 28 H70 V52 C70 70 58 80 50 86 C42 80 30 70 30 52 Z"
+          fill="${fill}" stroke="${ink}" stroke-width="2.5"/>
+    <!-- monogram -->
+    <text x="50" y="62" text-anchor="middle" font-family="Playfair Display, Georgia, serif"
+          font-weight="900" font-size="26" fill="${brass}">EMC</text>
+  </svg>`;
+}
+
+function fmtMoney(n){
+  const v = Number(n)||0;
+  return (v<0 ? '-€' : '€') + Math.abs(v).toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function genMemberId(){
+  const year = new Date().getFullYear();
+  let n = 1;
+  const existing = Object.values(state.members);
+  while(existing.some(m => m.id === `EMC-${year}-${String(n).padStart(4,'0')}`)) n++;
+  return `EMC-${year}-${String(n).padStart(4,'0')}`;
+}
+
+async function loadAll(){
+  try{
+    const r = await window.storage.get(STORAGE_KEY, true);
+    state.members = r ? JSON.parse(r.value) : {};
+  }catch(e){ state.members = {}; }
+  try{
+    const r = await window.storage.get(ORG_KEY, true);
+    const loaded = r ? JSON.parse(r.value) : {};
+    state.org = Object.assign({
+      name: "Elite Men's Club", balance: 0, log: [], minutes: [], rules: '', notices: [], submissions: [], events: [], description: ''
+    }, loaded);
+  }catch(e){ /* keep default */ }
+  try{
+    const r = await window.storage.get(ME_KEY, false);
+    state.me = r ? JSON.parse(r.value) : null;
+  }catch(e){ state.me = null; }
+  try{
+    const r = await window.storage.get(READ_KEY, false);
+    state.readNotices = r ? JSON.parse(r.value) : [];
+  }catch(e){ state.readNotices = []; }
+}
+
+async function saveReadNotices(){
+  await window.storage.set(READ_KEY, JSON.stringify(state.readNotices), false);
+}
+
+async function saveMembers(){
+  await window.storage.set(STORAGE_KEY, JSON.stringify(state.members), true);
+}
+async function saveOrg(){
+  await window.storage.set(ORG_KEY, JSON.stringify(state.org), true);
+}
+async function saveMe(){
+  await window.storage.set(ME_KEY, JSON.stringify(state.me), false);
+}
+
+function meRecord(){
+  return state.me ? state.members[state.me] : null;
+}
+function isAdmin(){
+  const m = meRecord();
+  return m && m.role === 'admin';
+}
+function myPosition(){
+  const m = meRecord();
+  return m && m.position ? m.position : 'Member';
+}
+function canEditMinutes(){
+  return isAdmin() || myPosition() === 'Secretary';
+}
+function canEditRules(){
+  return isAdmin() || myPosition() === 'President';
+}
+function canPostNotices(){
+  return isAdmin();
+}
+function canApproveFinance(){
+  return isAdmin() || myPosition() === 'Treasurer' || myPosition() === 'Financial Secretary';
+}
+function unreadNoticeCount(){
+  const all = (state.org.notices||[]).map(n=>n.id);
+  return all.filter(id => !state.readNotices.includes(id)).length;
+}
+function currentMonthKey(){
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+}
+function fmtMonthKey(key){
+  const [y,mo] = key.split('-').map(Number);
+  return new Date(y, mo-1, 1).toLocaleDateString(undefined,{month:'long', year:'numeric'});
+}
+
+// ---- Date / birthday helpers ----
+function nextBirthday(dob){
+  if(!dob) return null;
+  const parts = dob.split('-').map(Number);
+  if(parts.length !== 3) return null;
+  const [y, mo, d] = parts;
+  const today = new Date(); today.setHours(0,0,0,0);
+  let next = new Date(today.getFullYear(), mo-1, d);
+  if(next < today) next = new Date(today.getFullYear()+1, mo-1, d);
+  const days = Math.round((next - today) / 86400000);
+  const turning = next.getFullYear() - y;
+  return { date: next, days, turning };
+}
+function fmtDateLong(d){
+  return d.toLocaleDateString(undefined, { day:'numeric', month:'long' });
+}
+function pad(n){ return String(n).padStart(2,'0'); }
+function icsDate(d){
+  return `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+}
+function googleCalLink(title, date, details){
+  const d = icsDate(date);
+  const next = new Date(date); next.setDate(next.getDate()+1);
+  const params = new URLSearchParams({
+    action: 'TEMPLATE', text: title, dates: `${d}/${icsDate(next)}`, details: details||''
+  });
+  return `https://www.google.com/calendar/render?${params.toString()}`;
+}
+function icsDataUrl(title, date, details){
+  const d = icsDate(date);
+  const next = new Date(date); next.setDate(next.getDate()+1);
+  const ics = [
+    'BEGIN:VCALENDAR','VERSION:2.0','BEGIN:VEVENT',
+    `SUMMARY:${title}`, `DTSTART;VALUE=DATE:${d}`, `DTEND;VALUE=DATE:${icsDate(next)}`,
+    `DESCRIPTION:${(details||'').replace(/\n/g,'\\n')}`,
+    'END:VEVENT','END:VCALENDAR'
+  ].join('\r\n');
+  return 'data:text/calendar;charset=utf-8,' + encodeURIComponent(ics);
+}
+function canManageEvents(){
+  return isAdmin() || myPosition() === 'Secretary' || myPosition() === 'President';
+}
+// Combine member birthdays with club-organized events into a single sorted, upcoming list
+function upcomingItems(limit){
+  const items = [];
+  Object.values(state.members).forEach(m => {
+    const nb = nextBirthday(m.dob);
+    if(nb){
+      items.push({ date: nb.date, title: `${m.name}'s Birthday`, details: `Turning ${nb.turning}`, type: 'birthday', days: nb.days });
+    }
+  });
+  const today = new Date(); today.setHours(0,0,0,0);
+  (state.org.events||[]).forEach(e => {
+    const d = new Date(e.date + 'T00:00:00');
+    if(d >= today){
+      const days = Math.round((d - today) / 86400000);
+      items.push({ date: d, title: e.title, details: e.description||'', type: 'event', days });
+    }
+  });
+  items.sort((a,b) => a.date - b.date);
+  return limit ? items.slice(0, limit) : items;
+}
+function renderUpcomingItem(item){
+  const gcal = googleCalLink(item.title, item.date, item.details);
+  const ics = icsDataUrl(item.title, item.date, item.details);
+  const dayLabel = item.days===0 ? 'Today' : (item.days===1 ? 'Tomorrow' : `In ${item.days} days`);
+  return `
+  <div class="event-item">
+    <div class="event-date">
+      <div class="event-date-day">${item.date.getDate()}</div>
+      <div class="event-date-month">${item.date.toLocaleDateString(undefined,{month:'short'})}</div>
+    </div>
+    <div class="event-body">
+      <div class="event-title">${item.type==='birthday' ? '🎂 ' : ''}${escapeHtml(item.title)}</div>
+      ${item.details ? `<div class="small">${escapeHtml(item.details)}</div>` : ''}
+      <div class="small">${dayLabel} · ${fmtDateLong(item.date)}</div>
+    </div>
+    <div class="event-actions">
+      <a class="btn outline" style="padding:6px 12px;font-size:0.75rem;" href="${gcal}" target="_blank" rel="noopener">Google Calendar</a>
+      <a class="btn outline" style="padding:6px 12px;font-size:0.75rem;" href="${ics}" download="${item.title.replace(/[^a-z0-9]+/gi,'_')}.ics">Apple / Outlook (.ics)</a>
+    </div>
+  </div>`;
+}
+
+// ---------------- RENDER ----------------
+function render(){
+  const root = document.getElementById('root');
+  if(!state.me || !state.members[state.me]){
+    root.innerHTML = renderLogin();
+    attachLoginHandlers();
+    return;
+  }
+  root.innerHTML = `
+    ${renderHeader()}
+    ${renderTabs()}
+    <div id="tab-content">${renderTab()}</div>
+  `;
+  attachGlobalHandlers();
+  attachTabHandlers();
+}
+
+function renderHeader(){
+  const me = meRecord();
+  return `
+    <header class="masthead">
+      <div class="brand">
+        ${LOGO_SVG('brand')}
+        <div>
+          <div class="title">Elite <span>Men's</span> Club</div>
+          <div class="sub">${escapeHtml(state.org.name)}</div>
+        </div>
+      </div>
+      <div class="whoami">
+        Signed in as <b>${escapeHtml(me.name)}</b> ${me.role==='admin' ? '<span class="tag admin">ADMIN</span>' : ''}
+        <br>
+        <button id="logout-btn">Switch member</button>
+      </div>
+    </header>
+  `;
+}
+
+function renderTabs(){
+  const tabs = [
+    {id:'overview', label:'Welcome'},
+    {id:'profile', label:'My Profile'},
+    {id:'idcard', label:'ID Card'},
+    {id:'directory', label:'Directory'},
+    {id:'finance', label:'Finances'},
+    {id:'events', label:'Events'},
+    {id:'minutes', label:'Minutes'},
+    {id:'rules', label:'Rules'},
+    {id:'notices', label:'Notices'},
+  ];
+  if(isAdmin()) tabs.push({id:'admin', label:'Admin'});
+  return `<nav class="tabs">
+    ${tabs.map(t => `<button data-tab="${t.id}" class="${state.tab===t.id?'active':''}">${t.label}${tabBadge(t.id)}</button>`).join('')}
+  </nav>`;
+}
+
+function tabBadge(tabId){
+  if(tabId === 'notices'){
+    const n = unreadNoticeCount();
+    return n>0 ? ` <span class="badge">${n}</span>` : '';
+  }
+  if(tabId === 'finance' && canApproveFinance()){
+    const n = (state.org.submissions||[]).filter(s=>s.status==='pending').length;
+    return n>0 ? ` <span class="badge">${n}</span>` : '';
+  }
+  return '';
+}
+
+function renderTab(){
+  switch(state.tab){
+    case 'overview': return renderOverview();
+    case 'profile': return renderProfile();
+    case 'idcard': return renderIdCard();
+    case 'directory': return renderDirectory();
+    case 'finance': return renderFinance();
+    case 'events': return renderEvents();
+    case 'minutes': return renderMinutes();
+    case 'rules': return renderRules();
+    case 'notices': return renderNotices();
+    case 'admin': return isAdmin() ? renderAdmin() : '<div class="panel">Not authorized.</div>';
+    default: return '';
+  }
+}
+
+// ---------------- LOGIN ----------------
+function renderLogin(){
+  const memberOptions = Object.values(state.members)
+    .map(m => `<option value="${m.id}">${escapeHtml(m.name)} — ${m.id}</option>`).join('');
+  return `
+  <div class="login-box">
+    <div class="panel">
+      <div class="brand">${LOGO_SVG('brand')}</div>
+      <div class="title">Elite <span>Men's</span> Club</div>
+      <p class="small" style="margin-bottom:20px;">Members' Portal &amp; Financial Ledger</p>
+
+      ${Object.keys(state.members).length > 0 ? `
+        <div class="field">
+          <label>Select your member profile</label>
+          <select id="select-member">
+            <option value="">— choose —</option>
+            ${memberOptions}
+          </select>
+        </div>
+        <div class="field">
+          <label>PIN</label>
+          <input id="select-pin" type="password" inputmode="numeric" maxlength="6" placeholder="4–6 digit PIN">
+        </div>
+        <button class="btn brass" id="select-login-btn" style="width:100%;">Enter as selected member</button>
+        <div class="divider"></div>
+      ` : ''}
+
+      <p class="lede" style="text-align:left;">${Object.keys(state.members).length===0 ? 'No members yet — create the first profile to become the club&#39;s founding admin.' : 'Or set up a brand-new member profile:'}</p>
+
+      <div style="text-align:left;">
+        <div class="field">
+          <label>Full Name *</label>
+          <input id="new-name" type="text" placeholder="e.g. Jordan Reyes">
+        </div>
+        <div class="grid2">
+          <div class="field">
+            <label>Email</label>
+            <input id="new-email" type="email" placeholder="jordan@email.com">
+          </div>
+          <div class="field">
+            <label>Phone</label>
+            <input id="new-phone" type="tel" placeholder="+1 555 0100">
+          </div>
+        </div>
+        <div class="field">
+          <label>Choose a PIN (4–6 digits)</label>
+          <input id="new-pin" type="password" inputmode="numeric" maxlength="6" placeholder="e.g. 1234">
+        </div>
+        <div class="field">
+          <label>Date of Birth</label>
+          <input id="new-dob" type="date">
+        </div>
+      </div>
+      <button class="btn" id="create-member-btn" style="width:100%;">Create my profile</button>
+    </div>
+  </div>`;
+}
+
+function attachLoginHandlers(){
+  const selBtn = document.getElementById('select-login-btn');
+  if(selBtn){
+    selBtn.onclick = async () => {
+      const sel = document.getElementById('select-member').value;
+      const pin = document.getElementById('select-pin').value.trim();
+      if(!sel){ alert('Please choose a member.'); return; }
+      const m = state.members[sel];
+      if((m.pin || '') !== pin){ alert('Incorrect PIN.'); return; }
+      state.me = sel;
+      await saveMe();
+      render();
+    };
+  }
+  document.getElementById('create-member-btn').onclick = async () => {
+    const name = document.getElementById('new-name').value.trim();
+    if(!name){ alert('Name is required.'); return; }
+    const pin = document.getElementById('new-pin').value.trim();
+    if(!/^\d{4,6}$/.test(pin)){ alert('PIN must be 4–6 digits.'); return; }
+    const email = document.getElementById('new-email').value.trim();
+    const phone = document.getElementById('new-phone').value.trim();
+    const dob = document.getElementById('new-dob').value;
+    const id = genMemberId();
+    const isFirst = Object.keys(state.members).length === 0;
+    const member = {
+      id, name, email, phone, pin, dob,
+      role: isFirst ? 'admin' : 'member',
+      position: isFirst ? 'President' : 'Member',
+      joined: new Date().toISOString().slice(0,10),
+      bio: '', address: '',
+      balance: 0,
+      dues: { status: 'pending', amount: 0, lastPaid: '' },
+      monthlyContribution: 0,
+      fines: 0,
+      contributions: {},
+      financeNotes: ''
+    };
+    state.members[id] = member;
+    await saveMembers();
+    state.me = id;
+    await saveMe();
+    if(isFirst){
+      state.org.balance = 0;
+      state.org.log = [];
+      await saveOrg();
+    }
+    render();
+  };
+}
+
+// ---------------- PROFILE ----------------
+function renderProfile(){
+  const m = meRecord();
+  return `
+  <div class="panel">
+    <h2><span class="num">${m.id.split('-').pop()}</span> My Profile</h2>
+    <p class="lede">Keep your details current — this information appears in the club directory and on your ID card. Financial fields are managed by admins.</p>
+    <div class="profile-photo-row">
+      ${m.photo
+        ? `<img src="${m.photo}" alt="${escapeAttr(m.name)}" class="profile-photo">`
+        : `<div class="profile-photo profile-photo--empty">${escapeHtml(initials(m.name))}</div>`}
+      <div class="small">Passport photo — manage this from the <b>ID Card</b> tab.</div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Full Name</label><input id="p-name" value="${escapeAttr(m.name)}"></div>
+      <div class="field"><label>Email</label><input id="p-email" value="${escapeAttr(m.email||'')}"></div>
+      <div class="field"><label>Phone</label><input id="p-phone" value="${escapeAttr(m.phone||'')}"></div>
+      <div class="field"><label>Address</label><input id="p-address" value="${escapeAttr(m.address||'')}"></div>
+      <div class="field"><label>Date of Birth</label><input id="p-dob" type="date" value="${escapeAttr(m.dob||'')}"></div>
+      <div class="field"><label>Club Position</label><input value="${escapeAttr(m.position||'Member')}" disabled></div>
+    </div>
+    <div class="field"><label>About / Bio</label><textarea id="p-bio">${escapeHtml(m.bio||'')}</textarea></div>
+    <div class="btn-row">
+      <button class="btn" id="save-profile-btn">Save Changes</button>
+    </div>
+    <hr class="divider">
+    <p class="small">Member ID: <b>${m.id}</b> · Joined ${m.joined} · Role: ${m.role}</p>
+    <hr class="divider">
+    <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">Change PIN</h3>
+    <div class="grid2">
+      <div class="field"><label>Current PIN</label><input id="p-pin-old" type="password" inputmode="numeric" maxlength="6"></div>
+      <div class="field"><label>New PIN (4–6 digits)</label><input id="p-pin-new" type="password" inputmode="numeric" maxlength="6"></div>
+    </div>
+    <button class="btn outline" id="change-pin-btn">Update PIN</button>
+  </div>`;
+}
+
+function attachProfileHandlers(){
+  const btn = document.getElementById('save-profile-btn');
+  if(!btn) return;
+  btn.onclick = async () => {
+    const m = meRecord();
+    m.name = document.getElementById('p-name').value.trim() || m.name;
+    m.email = document.getElementById('p-email').value.trim();
+    m.phone = document.getElementById('p-phone').value.trim();
+    m.address = document.getElementById('p-address').value.trim();
+    m.dob = document.getElementById('p-dob').value;
+    m.bio = document.getElementById('p-bio').value.trim();
+    await saveMembers();
+    render();
+  };
+  const pinBtn = document.getElementById('change-pin-btn');
+  if(pinBtn){
+    pinBtn.onclick = async () => {
+      const m = meRecord();
+      const oldPin = document.getElementById('p-pin-old').value.trim();
+      const newPin = document.getElementById('p-pin-new').value.trim();
+      if((m.pin||'') !== oldPin){ alert('Current PIN is incorrect.'); return; }
+      if(!/^\d{4,6}$/.test(newPin)){ alert('New PIN must be 4–6 digits.'); return; }
+      m.pin = newPin;
+      await saveMembers();
+      alert('PIN updated.');
+    };
+  }
+}
+
+// ---------------- ID CARD ----------------
+function renderIdCard(){
+  const m = meRecord();
+  const photoHtml = m.photo
+    ? `<img src="${m.photo}" alt="${escapeAttr(m.name)}" class="card-photo">`
+    : `<div class="card-photo card-photo--empty">${escapeHtml(initials(m.name))}</div>`;
+  return `
+  <div class="panel">
+    <h2>ID Card</h2>
+    <p class="lede">Your official club identification card. Upload a passport photo below — it will appear here and on your profile. Use the print option to save as a PDF.</p>
+    <div class="card-wrap">
+      <div class="idcard" id="idcard-el">
+        <div class="idcard-crest">${LOGO_SVG('mono')}</div>
+        <div class="org">ELITE <span>MEN'S</span> CLUB</div>
+        <div class="org-sub">Member Identification</div>
+        <div class="idcard-body">
+          ${photoHtml}
+          <div class="idcard-info">
+            <div class="name">${escapeHtml(m.name)}</div>
+            <div class="role-tag">${escapeHtml(m.position||'Member')}</div>
+            <div class="meta">
+              <div><b>Email:</b> ${escapeHtml(m.email||'—')}</div>
+              <div><b>Phone:</b> ${escapeHtml(m.phone||'—')}</div>
+              <div><b>Member since:</b> ${m.joined}</div>
+            </div>
+          </div>
+        </div>
+        <div class="idnum">
+          <small>MEMBER ID</small>
+          ${m.id}
+        </div>
+      </div>
+    </div>
+    <div class="btn-row" style="justify-content:center; margin-top:18px; flex-direction:column; align-items:center;">
+      <div class="field" style="max-width:320px; width:100%;">
+        <label>Upload passport photo</label>
+        <input type="file" id="photo-upload" accept="image/*">
+      </div>
+      <div class="btn-row">
+        ${m.photo ? '<button class="btn outline" id="remove-photo-btn">Remove Photo</button>' : ''}
+        <button class="btn brass" id="print-card-btn">Print / Save as PDF</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function initials(name){
+  return (name||'').trim().split(/\s+/).map(p=>p[0]).filter(Boolean).slice(0,2).join('').toUpperCase() || '?';
+}
+
+function readAndResizeImage(file, maxDim){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Could not load image'));
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > height){
+          if(width > maxDim){ height = Math.round(height * maxDim / width); width = maxDim; }
+        } else {
+          if(height > maxDim){ width = Math.round(width * maxDim / height); height = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.85));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function attachIdCardHandlers(){
+  const upload = document.getElementById('photo-upload');
+  if(upload){
+    upload.onchange = async () => {
+      const file = upload.files[0];
+      if(!file) return;
+      try{
+        const dataUrl = await readAndResizeImage(file, 400);
+        meRecord().photo = dataUrl;
+        await saveMembers();
+        render();
+      }catch(e){
+        alert('Could not process that image: ' + e.message);
+      }
+    };
+  }
+  const removeBtn = document.getElementById('remove-photo-btn');
+  if(removeBtn){
+    removeBtn.onclick = async () => {
+      delete meRecord().photo;
+      await saveMembers();
+      render();
+    };
+  }
+  const btn = document.getElementById('print-card-btn');
+  if(!btn) return;
+  btn.onclick = () => {
+    const card = document.getElementById('idcard-el').outerHTML;
+    const w = window.open('', '_blank');
+    w.document.write(`
+      <html><head><title>Member ID Card</title>
+      <style>
+        body{display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#eee;font-family:sans-serif;}
+        ${document.querySelector('style').innerHTML}
+      </style></head>
+      <body>${card}</body></html>
+    `);
+    w.document.close();
+    setTimeout(()=>w.print(), 300);
+  };
+}
+
+// ---------------- DIRECTORY ----------------
+function renderDirectory(){
+  const members = Object.values(state.members).sort((a,b)=>a.name.localeCompare(b.name));
+  const rows = members.map(m => `
+    <tr>
+      <td>
+        <div style="display:flex; align-items:center; gap:10px;">
+          ${m.photo
+            ? `<img src="${m.photo}" alt="${escapeAttr(m.name)}" class="thumb-photo">`
+            : `<div class="thumb-photo thumb-photo--empty">${escapeHtml(initials(m.name))}</div>`}
+          <div><b>${escapeHtml(m.name)}</b><br><span class="small">${m.id}</span></div>
+        </div>
+      </td>
+      <td>${escapeHtml(m.email||'—')}</td>
+      <td>${escapeHtml(m.phone||'—')}</td>
+      <td><span class="tag ${m.role==='admin'?'admin':'member'}">${escapeHtml(m.position||'Member')}</span></td>
+      <td>${m.joined}</td>
+    </tr>
+  `).join('');
+  return `
+  <div class="panel">
+    <h2>Member Directory</h2>
+    <p class="lede">General information for all club members.</p>
+    <table>
+      <thead><tr><th>Name / ID</th><th>Email</th><th>Phone</th><th>Position</th><th>Joined</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" class="empty">No members yet.</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+// ---------------- FINANCE ----------------
+function renderFinance(){
+  const members = Object.values(state.members).sort((a,b)=>a.name.localeCompare(b.name));
+  const totalDuesOwed = members.filter(m=>m.dues.status!=='paid').reduce((s,m)=>s+(Number(m.dues.amount)||0),0);
+  const totalMonthly = members.reduce((s,m)=>s+(Number(m.monthlyContribution)||0),0);
+  const totalFines = members.reduce((s,m)=>s+(Number(m.fines)||0),0);
+  const thisMonth = currentMonthKey();
+  const rows = members.map(m => {
+    const paidThisMonth = (m.contributions||{})[thisMonth] === 'paid';
+    return `
+    <tr>
+      <td><b>${escapeHtml(m.name)}</b><br><span class="small">${m.id}</span></td>
+      <td class="${m.balance<0?'neg':'pos'}">${fmtMoney(m.balance)}</td>
+      <td>${fmtMoney(m.monthlyContribution||0)} <br><span class="tag ${paidThisMonth?'member':'admin'}">${paidThisMonth?'PAID '+fmtMonthKey(thisMonth):'PENDING '+fmtMonthKey(thisMonth)}</span></td>
+      <td class="${(m.fines||0)>0?'neg':''}">${fmtMoney(m.fines||0)}</td>
+      <td>${m.dues.status==='paid' ? `<span class="tag member">PAID</span>` : `<span class="tag admin">${escapeHtml(m.dues.status.toUpperCase())}</span>`} ${m.dues.amount?fmtMoney(m.dues.amount):''}</td>
+      <td>${m.dues.lastPaid || '—'}</td>
+      <td><span class="small">${escapeHtml(m.financeNotes||'—')}</span></td>
+    </tr>
+  `;}).join('');
+
+  const log = (state.org.log||[]).slice().reverse().slice(0,12).map(e => `
+    <tr>
+      <td>${e.date}</td>
+      <td>${escapeHtml(e.desc)}</td>
+      <td class="${e.amount<0?'neg':'pos'}">${fmtMoney(e.amount)}</td>
+    </tr>
+  `).join('');
+
+  return `
+  <div class="panel">
+    <h2>Organization Finances</h2>
+    <p class="lede">Overview of the club's treasury and each member's account standing. Visible to all members; figures shown here are admin-approved.</p>
+    <div class="stat-row">
+      <div class="stat"><div class="v">${fmtMoney(state.org.balance)}</div><div class="l">Club Treasury</div></div>
+      <div class="stat"><div class="v">${members.length}</div><div class="l">Total Members</div></div>
+      <div class="stat"><div class="v">${fmtMoney(totalMonthly)}</div><div class="l">Monthly Contributions (total)</div></div>
+      <div class="stat"><div class="v">${fmtMoney(totalFines)}</div><div class="l">Outstanding Fines (total)</div></div>
+      <div class="stat"><div class="v">${fmtMoney(totalDuesOwed)}</div><div class="l">Dues Outstanding</div></div>
+    </div>
+    <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">Recent Transactions</h3>
+    <table style="margin-bottom:20px;">
+      <thead><tr><th>Date</th><th>Description</th><th>Amount</th></tr></thead>
+      <tbody>${log || '<tr><td colspan="3" class="empty">No transactions logged yet.</td></tr>'}</tbody>
+    </table>
+    <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">Member Accounts</h3>
+    <table>
+      <thead><tr><th>Member</th><th>Balance</th><th>Monthly Contribution</th><th>Fines</th><th>Dues</th><th>Last Paid</th><th>Notes</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="7" class="empty">No members yet.</td></tr>'}</tbody>
+    </table>
+    ${!isAdmin() ? '<p class="small" style="margin-top:14px;">Balances, dues and contribution status are edited by the Treasurer / Financial Secretary and admins.</p>' : ''}
+  </div>
+  ${renderMySubmissions()}
+  ${canApproveFinance() ? renderApprovalQueue() : ''}`;
+}
+
+// ---- Member payment submission (pending admin/treasurer approval) ----
+function renderMySubmissions(){
+  const m = meRecord();
+  const mine = (state.org.submissions||[]).filter(s=>s.memberId===m.id).slice().reverse();
+  const rows = mine.map(s => `
+    <tr>
+      <td>${s.date}</td>
+      <td>${submissionLabel(s)}</td>
+      <td>${fmtMoney(s.amount)}</td>
+      <td><span class="tag ${s.status==='approved'?'member':(s.status==='rejected'?'admin':'')}" style="${s.status==='pending'?'background:var(--brass);color:var(--ink);':''}">${s.status.toUpperCase()}</span></td>
+      <td><span class="small">${escapeHtml(s.note||'—')}</span></td>
+    </tr>
+  `).join('');
+
+  return `
+  <div class="panel">
+    <h2>My Payments</h2>
+    <p class="lede">Report a payment you've made — once a treasurer or admin approves it, it will be reflected in the general financial records above.</p>
+    <div class="grid2">
+      <div class="field">
+        <label>Payment Type</label>
+        <select id="sub-type">
+          <option value="contribution">Monthly Contribution</option>
+          <option value="dues">Membership Dues</option>
+          <option value="fine">Fine Payment</option>
+        </select>
+      </div>
+      <div class="field" id="sub-period-field">
+        <label>Month Covered</label>
+        <input id="sub-period" type="month" value="${currentMonthKey()}">
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Amount (€)</label><input id="sub-amount" type="number" step="0.01" placeholder="e.g. ${m.monthlyContribution||25}"></div>
+      <div class="field"><label>Date Paid</label><input id="sub-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+    </div>
+    <div class="field"><label>Note (optional)</label><input id="sub-note" placeholder="e.g. Paid via bank transfer"></div>
+    <button class="btn brass" id="submit-payment-btn">Submit for Approval</button>
+
+    <hr class="divider">
+    <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">My Submission History</h3>
+    <table>
+      <thead><tr><th>Date</th><th>Type</th><th>Amount</th><th>Status</th><th>Note</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" class="empty">No payments submitted yet.</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+function submissionLabel(s){
+  if(s.type === 'contribution') return `Monthly Contribution (${fmtMonthKey(s.period)})`;
+  if(s.type === 'dues') return 'Membership Dues';
+  if(s.type === 'fine') return 'Fine Payment';
+  return s.type;
+}
+
+function renderApprovalQueue(){
+  const pending = (state.org.submissions||[]).filter(s=>s.status==='pending');
+  const rows = pending.map(s => {
+    const member = state.members[s.memberId];
+    return `
+    <tr>
+      <td><b>${escapeHtml(member ? member.name : 'Unknown')}</b><br><span class="small">${s.date}</span></td>
+      <td>${submissionLabel(s)}</td>
+      <td>${fmtMoney(s.amount)}</td>
+      <td><span class="small">${escapeHtml(s.note||'—')}</span></td>
+      <td>
+        <button class="btn outline approve-sub-btn" data-id="${s.id}" style="padding:6px 14px; font-size:0.8rem;">Approve</button>
+        <button class="btn danger reject-sub-btn" data-id="${s.id}" style="padding:6px 14px; font-size:0.8rem;">Reject</button>
+      </td>
+    </tr>
+  `;}).join('');
+
+  return `
+  <div class="panel">
+    <h2>Pending Approvals <span class="badge">${pending.length}</span></h2>
+    <p class="lede">Payments reported by members, awaiting your review as Treasurer / Financial Secretary. Approving updates the general financial records for everyone to see.</p>
+    <table>
+      <thead><tr><th>Member</th><th>Type</th><th>Amount</th><th>Note</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5" class="empty">No pending submissions.</td></tr>'}</tbody>
+    </table>
+  </div>`;
+}
+
+// ---------------- OVERVIEW / WELCOME ----------------
+function renderOverview(){
+  const me = meRecord();
+  const members = Object.values(state.members);
+  const pendingCount = (state.org.submissions||[]).filter(s=>s.status==='pending').length;
+  const upcoming = upcomingItems(4);
+  const latestNotice = (state.org.notices||[])[0];
+  const latestMinutes = (state.org.minutes||[]).slice().sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+
+  return `
+  <div class="panel">
+    <div class="brand" style="margin-bottom:12px;">
+      ${LOGO_SVG('brand')}
+      <div>
+        <h2 style="margin:0;">Welcome, ${escapeHtml((me.name||'').split(' ')[0] || me.name)}</h2>
+        <p class="small">${escapeHtml(me.position||'Member')} · ${escapeHtml(state.org.name)}</p>
+      </div>
+    </div>
+    ${state.org.description
+      ? `<p class="lede" style="white-space:pre-wrap;">${escapeHtml(state.org.description)}</p>`
+      : `<p class="lede">Welcome to the club portal.${isAdmin() ? ' Add an organization overview from the Admin tab.' : ''}</p>`}
+    <div class="stat-row">
+      <div class="stat"><div class="v">${members.length}</div><div class="l">Members</div></div>
+      <div class="stat"><div class="v">${fmtMoney(state.org.balance)}</div><div class="l">Club Treasury</div></div>
+      ${canApproveFinance() ? `<div class="stat"><div class="v">${pendingCount}</div><div class="l">Pending Approvals</div></div>` : ''}
+      <div class="stat"><div class="v">${unreadNoticeCount()}</div><div class="l">Unread Notices</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Upcoming</h2>
+    <p class="lede">Birthdays and scheduled club events. Tap a button to add any of these to your personal calendar.</p>
+    ${upcoming.length ? upcoming.map(renderUpcomingItem).join('') : '<p class="empty">Nothing on the horizon yet.</p>'}
+  </div>
+
+  ${latestNotice ? `
+  <div class="panel">
+    <h2>Latest Notice</h2>
+    <div class="notice-card">
+      <div class="notice-title">${escapeHtml(latestNotice.title)}</div>
+      <div class="small">${latestNotice.date} · posted by ${escapeHtml(latestNotice.author||'Admin')}</div>
+      <p style="white-space:pre-wrap;">${escapeHtml(latestNotice.body)}</p>
+    </div>
+  </div>` : ''}
+
+  ${latestMinutes ? `
+  <div class="panel">
+    <h2>Latest Meeting Minutes</h2>
+    <div class="notice-card">
+      <div class="notice-title">${escapeHtml(latestMinutes.title)}</div>
+      <div class="small">${latestMinutes.date} · recorded by ${escapeHtml(latestMinutes.author||'—')}</div>
+    </div>
+  </div>` : ''}`;
+}
+
+// ---------------- EVENTS ----------------
+function renderEvents(){
+  const upcoming = upcomingItems();
+  const formHtml = canManageEvents() ? `
+    <hr class="divider">
+    <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">Add an Event</h3>
+    <div class="grid2">
+      <div class="field"><label>Title</label><input id="ev-title" placeholder="e.g. Monthly General Meeting"></div>
+      <div class="field"><label>Date</label><input id="ev-date" type="date"></div>
+    </div>
+    <div class="field"><label>Description</label><input id="ev-desc" placeholder="Optional details, venue, agenda, etc."></div>
+    <button class="btn brass" id="add-event-btn">Add Event</button>
+  ` : '';
+
+  const existingEvents = (state.org.events||[]).slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const manageRows = (canManageEvents() && existingEvents.length) ? `
+    <hr class="divider">
+    <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">Manage Club Events</h3>
+    <table>
+      <thead><tr><th>Date</th><th>Title</th><th>Description</th><th></th></tr></thead>
+      <tbody>
+        ${existingEvents.map(e=>`
+          <tr>
+            <td>${e.date}</td>
+            <td>${escapeHtml(e.title)}</td>
+            <td><span class="small">${escapeHtml(e.description||'—')}</span></td>
+            <td><button class="btn danger remove-event-btn" data-id="${e.id}" style="padding:6px 14px;font-size:0.8rem;">Remove</button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  ` : '';
+
+  return `
+  <div class="panel">
+    <h2>Upcoming Events &amp; Birthdays</h2>
+    <p class="lede">Member birthdays and club-organized events, all in one place. Add any item to your personal Google or Apple/Outlook calendar.</p>
+    ${upcoming.length ? upcoming.map(renderUpcomingItem).join('') : '<p class="empty">Nothing scheduled yet.</p>'}
+    ${formHtml}
+    ${manageRows}
+  </div>`;
+}
+
+function attachEventsHandlers(){
+  const addBtn = document.getElementById('add-event-btn');
+  if(addBtn){
+    addBtn.onclick = async () => {
+      const title = document.getElementById('ev-title').value.trim();
+      const date = document.getElementById('ev-date').value;
+      const description = document.getElementById('ev-desc').value.trim();
+      if(!title || !date){ alert('Please provide a title and date.'); return; }
+      state.org.events = state.org.events || [];
+      state.org.events.push({ id: genId('evt'), title, date, description, createdBy: meRecord().name });
+      await saveOrg();
+      render();
+    };
+  }
+  document.querySelectorAll('.remove-event-btn').forEach(btn => {
+    btn.onclick = async () => {
+      if(!confirm('Remove this event?')) return;
+      state.org.events = (state.org.events||[]).filter(e=>e.id!==btn.dataset.id);
+      await saveOrg();
+      render();
+    };
+  });
+}
+
+// ---------------- MEETING MINUTES ----------------
+function renderMinutes(){
+  const minutes = (state.org.minutes||[]).slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const formHtml = canEditMinutes() ? `
+    <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">Record New Minutes</h3>
+    <div class="grid2">
+      <div class="field"><label>Meeting Date</label><input id="min-date" type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="field"><label>Title</label><input id="min-title" placeholder="e.g. June General Meeting"></div>
+    </div>
+    <div class="field"><label>Minutes</label><textarea id="min-content" style="min-height:120px;" placeholder="Summary of discussion, decisions, and action items..."></textarea></div>
+    <button class="btn brass" id="add-minutes-btn">Publish Minutes</button>
+    <hr class="divider">
+  ` : '';
+
+  const items = minutes.map(min => `
+    <div class="notice-card">
+      <div class="notice-title">${escapeHtml(min.title)}</div>
+      <div class="small">${min.date} · recorded by ${escapeHtml(min.author||'—')}</div>
+      <p style="white-space:pre-wrap;">${escapeHtml(min.content)}</p>
+      ${canEditMinutes() ? `<button class="btn outline remove-minutes-btn" data-id="${min.id}" style="padding:6px 14px;font-size:0.8rem;">Remove</button>` : ''}
+    </div>
+  `).join('');
+
+  return `
+  <div class="panel">
+    <h2>Meeting Minutes</h2>
+    <p class="lede">Records of club meetings, maintained by the Secretary.</p>
+    ${formHtml}
+    ${items || '<p class="empty">No minutes recorded yet.</p>'}
+  </div>`;
+}
+
+function attachMinutesHandlers(){
+  const addBtn = document.getElementById('add-minutes-btn');
+  if(addBtn){
+    addBtn.onclick = async () => {
+      const date = document.getElementById('min-date').value;
+      const title = document.getElementById('min-title').value.trim();
+      const content = document.getElementById('min-content').value.trim();
+      if(!date || !title || !content){ alert('Please fill in date, title, and minutes.'); return; }
+      state.org.minutes = state.org.minutes || [];
+      state.org.minutes.push({ id: genId('min'), date, title, content, author: meRecord().name });
+      await saveOrg();
+      render();
+    };
+  }
+  document.querySelectorAll('.remove-minutes-btn').forEach(btn => {
+    btn.onclick = async () => {
+      if(!confirm('Remove these minutes?')) return;
+      state.org.minutes = (state.org.minutes||[]).filter(mn=>mn.id!==btn.dataset.id);
+      await saveOrg();
+      render();
+    };
+  });
+}
+
+// ---------------- RULES & REGULATIONS ----------------
+function renderRules(){
+  const editable = canEditRules();
+  const rulesText = state.org.rules || '';
+  const formattedParagraphs = rulesText.split(/\n\s*\n/).filter(p=>p.trim())
+    .map(p => `<p style="margin-bottom:12px; white-space:pre-wrap;">${escapeHtml(p.trim())}</p>`).join('');
+
+  return `
+  <div class="panel">
+    <h2>Rules &amp; Regulations</h2>
+    ${editable ? `
+      <p class="lede">As President / Admin, you can edit the club's rules and regulations below. Separate sections with a blank line.</p>
+      <div class="field"><textarea id="rules-text" style="min-height:240px;">${escapeHtml(rulesText)}</textarea></div>
+      <button class="btn brass" id="save-rules-btn">Save Rules</button>
+      <hr class="divider">
+      <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">Preview</h3>
+    ` : '<p class="lede">Maintained by the President and club administrators.</p>'}
+    ${formattedParagraphs || '<p class="empty">No rules have been published yet.</p>'}
+  </div>`;
+}
+
+function attachRulesHandlers(){
+  const btn = document.getElementById('save-rules-btn');
+  if(!btn) return;
+  btn.onclick = async () => {
+    state.org.rules = document.getElementById('rules-text').value;
+    await saveOrg();
+    render();
+  };
+}
+
+// ---------------- NOTICES ----------------
+function renderNotices(){
+  const notices = (state.org.notices||[]).slice().sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const formHtml = canPostNotices() ? `
+    <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">Post a Notice</h3>
+    <div class="field"><label>Title</label><input id="notice-title" placeholder="e.g. Annual Dinner — Save the Date"></div>
+    <div class="field"><label>Message</label><textarea id="notice-body" style="min-height:100px;" placeholder="Notice details for all members..."></textarea></div>
+    <button class="btn brass" id="post-notice-btn">Post Notice</button>
+    <hr class="divider">
+  ` : '';
+
+  const items = notices.map(n => {
+    const unread = !state.readNotices.includes(n.id);
+    return `
+    <div class="notice-card ${unread?'notice-card--unread':''}">
+      <div class="notice-title">${unread ? '<span class="badge" style="margin-right:6px;">NEW</span>' : ''}${escapeHtml(n.title)}</div>
+      <div class="small">${n.date} · posted by ${escapeHtml(n.author||'Admin')}</div>
+      <p style="white-space:pre-wrap;">${escapeHtml(n.body)}</p>
+      ${canPostNotices() ? `<button class="btn outline remove-notice-btn" data-id="${n.id}" style="padding:6px 14px;font-size:0.8rem;">Remove</button>` : ''}
+    </div>
+  `;}).join('');
+
+  return `
+  <div class="panel">
+    <h2>Notices ${unreadNoticeCount()>0 ? `<span class="badge">${unreadNoticeCount()}</span>` : ''}</h2>
+    <p class="lede">Official notices from club administrators. New notices appear here as soon as they're posted.</p>
+    <div class="btn-row" style="margin-bottom:14px;">
+      <button class="btn outline" id="mark-read-btn">Mark all as read</button>
+      <button class="btn outline" id="enable-notif-btn">Enable browser notifications</button>
+    </div>
+    <p class="small" style="margin-bottom:14px;">Note: browser notifications only appear while this app is open in a tab. True push notifications and automatic emails to members require a backend notification service, which is outside what a single-page app can do on its own — this in-app board plus optional browser alerts is the closest equivalent.</p>
+    ${formHtml}
+    ${items || '<p class="empty">No notices yet.</p>'}
+  </div>`;
+}
+
+function attachNoticesHandlers(){
+  const postBtn = document.getElementById('post-notice-btn');
+  if(postBtn){
+    postBtn.onclick = async () => {
+      const title = document.getElementById('notice-title').value.trim();
+      const body = document.getElementById('notice-body').value.trim();
+      if(!title || !body){ alert('Please enter a title and message.'); return; }
+      state.org.notices = state.org.notices || [];
+      const notice = { id: genId('not'), title, body, date: new Date().toISOString().slice(0,10), author: meRecord().name };
+      state.org.notices.unshift(notice);
+      await saveOrg();
+      if('Notification' in window && Notification.permission === 'granted'){
+        try{ new Notification(`${state.org.name}: ${title}`, { body }); }catch(e){}
+      }
+      render();
+    };
+  }
+  document.querySelectorAll('.remove-notice-btn').forEach(btn => {
+    btn.onclick = async () => {
+      if(!confirm('Remove this notice?')) return;
+      state.org.notices = (state.org.notices||[]).filter(n=>n.id!==btn.dataset.id);
+      await saveOrg();
+      render();
+    };
+  });
+  const markReadBtn = document.getElementById('mark-read-btn');
+  if(markReadBtn){
+    markReadBtn.onclick = async () => {
+      const ids = (state.org.notices||[]).map(n=>n.id);
+      state.readNotices = Array.from(new Set(state.readNotices.concat(ids)));
+      await saveReadNotices();
+      render();
+    };
+  }
+  const enableBtn = document.getElementById('enable-notif-btn');
+  if(enableBtn){
+    enableBtn.onclick = async () => {
+      if(!('Notification' in window)){ alert('Notifications are not supported in this browser.'); return; }
+      const perm = await Notification.requestPermission();
+      if(perm === 'granted'){ alert("Notifications enabled. You'll see alerts for new notices while this app is open."); }
+      else { alert('Notification permission was not granted.'); }
+    };
+  }
+}
+
+// ---------------- ADMIN ----------------
+function renderAdmin(){
+  const members = Object.values(state.members).sort((a,b)=>a.name.localeCompare(b.name));
+  const rows = members.map(m => `
+    <tr data-id="${m.id}">
+      <td><b>${escapeHtml(m.name)}</b><br><span class="small">${m.id}</span></td>
+      <td>
+        <select class="role-select" data-id="${m.id}">
+          <option value="member" ${m.role==='member'?'selected':''}>member</option>
+          <option value="admin" ${m.role==='admin'?'selected':''}>admin</option>
+        </select>
+      </td>
+      <td>
+        <select class="position-select" data-id="${m.id}">
+          ${POSITIONS.map(p => `<option value="${p}" ${(m.position||'Member')===p?'selected':''}>${p}</option>`).join('')}
+        </select>
+      </td>
+      <td><input class="bal-input" data-id="${m.id}" type="number" step="0.01" value="${m.balance}" style="width:90px;"></td>
+      <td><input class="contrib-input" data-id="${m.id}" type="number" step="0.01" value="${m.monthlyContribution||0}" style="width:80px;"></td>
+      <td><input class="fines-input" data-id="${m.id}" type="number" step="0.01" value="${m.fines||0}" style="width:80px;"></td>
+      <td>
+        <select class="dues-status" data-id="${m.id}">
+          <option value="pending" ${m.dues.status==='pending'?'selected':''}>pending</option>
+          <option value="paid" ${m.dues.status==='paid'?'selected':''}>paid</option>
+          <option value="overdue" ${m.dues.status==='overdue'?'selected':''}>overdue</option>
+        </select>
+      </td>
+      <td><input class="dues-amount" data-id="${m.id}" type="number" step="0.01" value="${m.dues.amount}" style="width:80px;"></td>
+      <td>
+        <button class="btn outline save-member-btn" data-id="${m.id}" style="padding:6px 14px; font-size:0.8rem;">Save</button>
+        <button class="btn outline reset-pin-btn" data-id="${m.id}" style="padding:6px 14px; font-size:0.8rem;">Reset PIN</button>
+        <button class="btn danger remove-member-btn" data-id="${m.id}" style="padding:6px 14px; font-size:0.8rem;">Remove</button>
+      </td>
+    </tr>
+  `).join('');
+
+  return `
+  <div class="panel">
+    <h2>Admin · Member Management</h2>
+    <p class="lede">Update roles, club positions, balances, monthly contributions, fines, and dues status for any member. Assigning a position (e.g. Treasurer, Secretary, President) grants the related permissions across the app. Changes save per row.</p>
+    <table>
+      <thead><tr><th>Member</th><th>Role</th><th>Position</th><th>Balance (€)</th><th>Monthly Contrib. (€)</th><th>Fines (€)</th><th>Dues Status</th><th>Dues Amount</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="9" class="empty">No members yet.</td></tr>'}</tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>Admin · Treasury &amp; Transactions</h2>
+    <p class="lede">Adjust the club's overall treasury balance and log a transaction.</p>
+    <div class="grid2">
+      <div class="field"><label>Club Treasury Balance (€)</label><input id="org-balance" type="number" step="0.01" value="${state.org.balance}"></div>
+      <div class="field"><label>Club / Organization Name</label><input id="org-name" value="${escapeAttr(state.org.name)}"></div>
+    </div>
+    <div class="btn-row" style="margin-bottom:18px;">
+      <button class="btn brass" id="save-org-btn">Save Treasury Settings</button>
+    </div>
+    <hr class="divider">
+    <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">Log a Transaction</h3>
+    <div class="grid2">
+      <div class="field"><label>Description</label><input id="tx-desc" placeholder="e.g. Venue deposit for annual gathering"></div>
+      <div class="field"><label>Amount (€, use negative for expenses)</label><input id="tx-amount" type="number" step="0.01" placeholder="e.g. -150.00"></div>
+    </div>
+    <button class="btn" id="add-tx-btn">Add Transaction</button>
+  </div>
+
+  <div class="panel">
+    <h2>Admin · Organization Settings</h2>
+    <p class="lede">Editable overview shown to all members on the Welcome page. The club name and treasury are set above.</p>
+    <div class="field"><label>Welcome / Overview Message</label><textarea id="org-description" style="min-height:120px;" placeholder="A short welcome message, mission statement, or summary of the club...">${escapeHtml(state.org.description||'')}</textarea></div>
+    <button class="btn brass" id="save-org-description-btn">Save Overview</button>
+  </div>`;
+}
+
+// ---------------- FINANCE SUBMISSION HANDLERS ----------------
+function attachFinanceHandlers(){
+  const typeSel = document.getElementById('sub-type');
+  const periodField = document.getElementById('sub-period-field');
+  if(typeSel){
+    const togglePeriod = () => {
+      periodField.style.display = typeSel.value === 'contribution' ? '' : 'none';
+    };
+    typeSel.onchange = togglePeriod;
+    togglePeriod();
+  }
+  const submitBtn = document.getElementById('submit-payment-btn');
+  if(submitBtn){
+    submitBtn.onclick = async () => {
+      const m = meRecord();
+      const type = document.getElementById('sub-type').value;
+      const amount = parseFloat(document.getElementById('sub-amount').value);
+      const date = document.getElementById('sub-date').value || new Date().toISOString().slice(0,10);
+      const period = type === 'contribution' ? document.getElementById('sub-period').value : date;
+      const note = document.getElementById('sub-note').value.trim();
+      if(isNaN(amount) || amount <= 0){ alert('Please enter a valid amount.'); return; }
+      state.org.submissions = state.org.submissions || [];
+      state.org.submissions.push({
+        id: genId('sub'), memberId: m.id, type, period, amount, date, note,
+        status: 'pending', submittedAt: new Date().toISOString()
+      });
+      await saveOrg();
+      render();
+    };
+  }
+  document.querySelectorAll('.approve-sub-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const sub = (state.org.submissions||[]).find(s=>s.id===btn.dataset.id);
+      if(!sub) return;
+      const member = state.members[sub.memberId];
+      if(!member){ alert('Member no longer exists.'); return; }
+      sub.status = 'approved';
+      sub.reviewedBy = meRecord().name;
+      sub.reviewedDate = new Date().toISOString().slice(0,10);
+      if(sub.type === 'contribution'){
+        member.contributions = member.contributions || {};
+        member.contributions[sub.period] = 'paid';
+      } else if(sub.type === 'dues'){
+        member.dues.status = 'paid';
+        member.dues.lastPaid = sub.date;
+      } else if(sub.type === 'fine'){
+        member.fines = Math.max(0, (Number(member.fines)||0) - sub.amount);
+      }
+      state.org.balance = (Number(state.org.balance)||0) + sub.amount;
+      state.org.log = state.org.log || [];
+      state.org.log.push({ date: sub.date, desc: `${member.name} — ${submissionLabel(sub)}`, amount: sub.amount });
+      await saveMembers();
+      await saveOrg();
+      render();
+    };
+  });
+  document.querySelectorAll('.reject-sub-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const sub = (state.org.submissions||[]).find(s=>s.id===btn.dataset.id);
+      if(!sub) return;
+      if(!confirm('Reject this payment submission?')) return;
+      sub.status = 'rejected';
+      sub.reviewedBy = meRecord().name;
+      sub.reviewedDate = new Date().toISOString().slice(0,10);
+      await saveOrg();
+      render();
+    };
+  });
+}
+
+function attachAdminHandlers(){
+  document.querySelectorAll('.save-member-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      const m = state.members[id];
+      const row = btn.closest('tr');
+      m.role = row.querySelector('.role-select').value;
+      m.position = row.querySelector('.position-select').value;
+      m.balance = parseFloat(row.querySelector('.bal-input').value) || 0;
+      m.monthlyContribution = parseFloat(row.querySelector('.contrib-input').value) || 0;
+      m.fines = parseFloat(row.querySelector('.fines-input').value) || 0;
+      m.dues.status = row.querySelector('.dues-status').value;
+      m.dues.amount = parseFloat(row.querySelector('.dues-amount').value) || 0;
+      if(m.dues.status === 'paid'){ m.dues.lastPaid = new Date().toISOString().slice(0,10); }
+      await saveMembers();
+      render();
+    };
+  });
+  document.querySelectorAll('.reset-pin-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      const newPin = prompt(`Set a new PIN for ${state.members[id].name} (4–6 digits):`);
+      if(newPin === null) return;
+      if(!/^\d{4,6}$/.test(newPin.trim())){ alert('PIN must be 4–6 digits.'); return; }
+      state.members[id].pin = newPin.trim();
+      await saveMembers();
+      alert('PIN reset.');
+    };
+  });
+  document.querySelectorAll('.remove-member-btn').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      if(id === state.me){ alert("You can't remove your own profile while logged in."); return; }
+      if(!confirm(`Remove member ${state.members[id].name}? This cannot be undone.`)) return;
+      delete state.members[id];
+      await saveMembers();
+      render();
+    };
+  });
+  const saveOrgBtn = document.getElementById('save-org-btn');
+  if(saveOrgBtn){
+    saveOrgBtn.onclick = async () => {
+      state.org.balance = parseFloat(document.getElementById('org-balance').value) || 0;
+      state.org.name = document.getElementById('org-name').value.trim() || state.org.name;
+      await saveOrg();
+      render();
+    };
+  }
+  const addTxBtn = document.getElementById('add-tx-btn');
+  if(addTxBtn){
+    addTxBtn.onclick = async () => {
+      const desc = document.getElementById('tx-desc').value.trim();
+      const amount = parseFloat(document.getElementById('tx-amount').value);
+      if(!desc || isNaN(amount)){ alert('Please enter a description and amount.'); return; }
+      state.org.log = state.org.log || [];
+      state.org.log.push({ date: new Date().toISOString().slice(0,10), desc, amount });
+      state.org.balance = (Number(state.org.balance)||0) + amount;
+      await saveOrg();
+      render();
+    };
+  }
+  const saveDescBtn = document.getElementById('save-org-description-btn');
+  if(saveDescBtn){
+    saveDescBtn.onclick = async () => {
+      state.org.description = document.getElementById('org-description').value;
+      await saveOrg();
+      render();
+    };
+  }
+}
+
+// ---------------- HANDLERS / UTIL ----------------
+function attachGlobalHandlers(){
+  document.getElementById('logout-btn').onclick = async () => {
+    state.me = null;
+    await saveMe();
+    render();
+  };
+  document.querySelectorAll('nav.tabs button').forEach(btn => {
+    btn.onclick = () => {
+      state.tab = btn.dataset.tab;
+      render();
+    };
+  });
+}
+
+function attachTabHandlers(){
+  attachProfileHandlers();
+  attachIdCardHandlers();
+  attachFinanceHandlers();
+  attachEventsHandlers();
+  attachMinutesHandlers();
+  attachRulesHandlers();
+  attachNoticesHandlers();
+  attachAdminHandlers();
+}
+
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+// ---------------- INIT ----------------
+(async function init(){
+  document.getElementById('root').innerHTML = '<div class="panel empty">Loading club roster…</div>';
+  try{
+    await loadAll();
+    if(state.me && !state.members[state.me]) state.me = null;
+    render();
+  }catch(err){
+    document.getElementById('root').innerHTML = `<div class="panel"><h2>Something went wrong</h2><p>${escapeHtml(err.message||String(err))}</p></div>`;
+    console.error(err);
+  }
+})();
+</script>
+</body>
+</html>
