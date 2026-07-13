@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Roster — Club Membership</title>
+<title>Elite Men's Club Spain — Member Portal</title>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <style>
   :root{
     --ink:#1c2b2d;
@@ -283,6 +284,50 @@ const STORAGE_KEY = 'club-members';
 const ME_KEY = 'club-current-user';
 const ORG_KEY = 'club-org-finance';
 const READ_KEY = 'club-notices-read';
+
+// ---------------- EMAIL NOTIFICATIONS (EmailJS) ----------------
+const EJS_PUBLIC_KEY  = 'AWhimLWi81GFqytbk';
+const EJS_SERVICE_ID  = 'service_azkoj4s';
+const EJS_TEMPLATE_ID = 'template_xghb7zh';
+const PORTAL_URL = (typeof window !== 'undefined' && window.location) ? window.location.href.split('?')[0] : '';
+
+let emailjsReady = false;
+function initEmailJS(){
+  if(typeof emailjs !== 'undefined'){
+    emailjs.init({ publicKey: EJS_PUBLIC_KEY });
+    emailjsReady = true;
+  }
+}
+
+// Send the notice to every member who has an email address on file.
+// Fires off all sends in parallel; failures are logged but don't block the UI.
+async function sendNoticeEmails(notice){
+  if(!emailjsReady){
+    console.warn('EmailJS not loaded — skipping email notifications.');
+    return { sent: 0, failed: 0, skipped: 0 };
+  }
+  const members = Object.values(state.members).filter(m => m.email && m.status !== 'inactive');
+  if(!members.length) return { sent: 0, failed: 0, skipped: 0 };
+
+  const results = await Promise.allSettled(
+    members.map(m =>
+      emailjs.send(EJS_SERVICE_ID, EJS_TEMPLATE_ID, {
+        member_name:  m.name,
+        member_email: m.email,
+        title:        notice.title,
+        message:      notice.body,
+        author:       notice.author || 'Admin',
+        date:         notice.date,
+        org_name:     state.org.name || "Elite Men's Club Spain",
+        portal_url:   PORTAL_URL
+      })
+    )
+  );
+
+  const sent   = results.filter(r => r.status === 'fulfilled').length;
+  const failed = results.filter(r => r.status === 'rejected').length;
+  return { sent, failed, skipped: 0 };
+}
 
 // ---------------- SHARED BACKEND (Supabase) ----------------
 // Member and organization data is shared by every visitor via a small Supabase
@@ -1449,7 +1494,8 @@ function renderNotices(){
     <h3 style="font-family:var(--serif); margin-bottom:8px; color:var(--forest);">Post a Notice</h3>
     <div class="field"><label>Title</label><input id="notice-title" placeholder="e.g. Annual Dinner — Save the Date"></div>
     <div class="field"><label>Message</label><textarea id="notice-body" style="min-height:100px;" placeholder="Notice details for all members..."></textarea></div>
-    <button class="btn brass" id="post-notice-btn">Post Notice</button>
+    <button class="btn brass" id="post-notice-btn">Post Notice &amp; Email Members</button>
+    <div id="email-status" class="small" style="margin-top:8px; min-height:18px;"></div>
     <hr class="divider">
   ` : '';
 
@@ -1467,12 +1513,11 @@ function renderNotices(){
   return `
   <div class="panel">
     <h2>Notices ${unreadNoticeCount()>0 ? `<span class="badge">${unreadNoticeCount()}</span>` : ''}</h2>
-    <p class="lede">Official notices from club administrators. New notices appear here as soon as they're posted.</p>
+    <p class="lede">Official notices from club administrators. When you post a notice, an email is automatically sent to every active member who has an email address on file, and it appears here on the notice board instantly.</p>
     <div class="btn-row" style="margin-bottom:14px;">
       <button class="btn outline" id="mark-read-btn">Mark all as read</button>
       <button class="btn outline" id="enable-notif-btn">Enable browser notifications</button>
     </div>
-    <p class="small" style="margin-bottom:14px;">Note: browser notifications only appear while this app is open in a tab. True push notifications and automatic emails to members require a backend notification service, which is outside what a single-page app can do on its own — this in-app board plus optional browser alerts is the closest equivalent.</p>
     ${formHtml}
     ${items || '<p class="empty">No notices yet.</p>'}
   </div>`;
@@ -1485,15 +1530,42 @@ function attachNoticesHandlers(){
       const title = document.getElementById('notice-title').value.trim();
       const body = document.getElementById('notice-body').value.trim();
       if(!title || !body){ alert('Please enter a title and message.'); return; }
+
       state.org.notices = state.org.notices || [];
       const notice = { id: genId('not'), title, body, date: new Date().toISOString().slice(0,10), author: meRecord().name };
       state.org.notices.unshift(notice);
       logActivity(`Posted notice: "${title}"`);
       await saveOrg();
+
+      // Browser notification (while tab is open)
       if('Notification' in window && Notification.permission === 'granted'){
         try{ new Notification(`${state.org.name}: ${title}`, { body }); }catch(e){}
       }
+
       render();
+
+      // Email notifications — fire after render so the UI updates immediately
+      postBtn.disabled = true;
+      const statusEl = document.getElementById('email-status');
+      if(statusEl) statusEl.textContent = `Sending emails to members…`;
+
+      const { sent, failed } = await sendNoticeEmails(notice);
+
+      if(statusEl){
+        if(sent > 0 && failed === 0){
+          statusEl.textContent = `✓ Email sent to ${sent} member${sent===1?'':'s'}.`;
+          statusEl.style.color = 'var(--forest)';
+        } else if(sent > 0 && failed > 0){
+          statusEl.textContent = `✓ Sent to ${sent} member${sent===1?'':'s'}, ${failed} failed.`;
+          statusEl.style.color = 'var(--brass)';
+        } else if(failed > 0){
+          statusEl.textContent = `⚠ Email delivery failed for ${failed} member${failed===1?'':'s'}. Check your EmailJS settings.`;
+          statusEl.style.color = 'var(--red)';
+        } else {
+          statusEl.textContent = 'No member emails on file.';
+          statusEl.style.color = '#889';
+        }
+      }
     };
   }
   document.querySelectorAll('.remove-notice-btn').forEach(btn => {
@@ -1940,6 +2012,7 @@ function escapeAttr(str){ return escapeHtml(str); }
 // ---------------- INIT ----------------
 (async function init(){
   document.getElementById('root').innerHTML = '<div class="panel empty">Connecting to club database…</div>';
+  initEmailJS();
   try{
     await loadAll();
     if(state.me && !state.members[state.me]) state.me = null;
@@ -1952,6 +2025,19 @@ function escapeAttr(str){ return escapeHtml(str); }
   // Periodically refresh shared data in the background so changes made by
   // other members (on other devices) show up without a manual reload.
   setInterval(backgroundRefresh, 45000);
+
+  // Keep-alive: Supabase free tier pauses projects after 7 days of inactivity.
+  // This tiny ping runs once on load and then every 4 days, resetting the clock
+  // silently as long as at least one member opens the app within any 7-day window.
+  async function keepAlive(){
+    try{
+      await fetch(`${SUPABASE_URL}/rest/v1/club_data?key=eq.__keepalive__&select=key&limit=1`, {
+        headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+      });
+    }catch(e){ /* silent — this is best-effort */ }
+  }
+  keepAlive();
+  setInterval(keepAlive, 4 * 24 * 60 * 60 * 1000); // every 4 days
 })();
 </script>
 </body>
